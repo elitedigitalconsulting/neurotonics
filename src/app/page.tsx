@@ -25,7 +25,7 @@ function StarRating({ rating }: { rating: number }) {
       {[...Array(5)].map((_, i) => (
         <svg
           key={i}
-          className={`w-4 h-4 ${i < rating ? 'text-yellow-400' : 'text-gray-600'}`}
+          className={`w-4 h-4 ${i < rating ? 'text-yellow-500' : 'text-gray-300'}`}
           fill="currentColor"
           viewBox="0 0 20 20"
         >
@@ -43,60 +43,59 @@ export default function Home() {
     <main>
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a1a] via-[#0d1033] to-[#0a0a1a]" />
+        {/* Background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-green-50 via-white to-white" />
         <div className="absolute inset-0">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-600/15 rounded-full blur-3xl" />
-          <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl transform -translate-x-1/2 -translate-y-1/2" />
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-green-100/60 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-100/40 rounded-full blur-3xl" />
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32 sm:py-40 text-center">
-          <div className="inline-flex items-center px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 mb-8">
-            <span className="text-purple-300 text-sm font-medium">🧠 ARTG Listed &bull; 100% Natural &bull; Made in Australia</span>
+          <div className="inline-flex items-center px-4 py-2 rounded-full bg-green-50 border border-green-200 mb-8">
+            <span className="text-green-700 text-sm font-medium">🧠 ARTG Listed &bull; 100% Natural &bull; Made in Australia</span>
           </div>
           
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 mb-6 leading-tight">
             {hero.headline.split(',').map((part, i) => (
               <span key={i}>
                 {i > 0 && <br className="hidden sm:block" />}
                 {i > 0 && ', '}
-                {i === 0 ? part : <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">{part.trim()}</span>}
+                {i === 0 ? part : <span className="text-green-700">{part.trim()}</span>}
               </span>
             ))}
           </h1>
           
-          <p className="text-lg sm:text-xl text-gray-300 max-w-3xl mx-auto mb-10 leading-relaxed">
+          <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto mb-10 leading-relaxed">
             {hero.subheadline}
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href={hero.ctaLink}
-              className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 text-center"
+              className="w-full sm:w-auto px-8 py-4 bg-green-700 hover:bg-green-800 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg shadow-green-700/20 hover:shadow-green-700/30 text-center"
             >
               {hero.ctaText} &mdash; ${productContent.price} AUD
             </Link>
             <Link
               href={hero.secondaryCtaLink}
-              className="w-full sm:w-auto px-8 py-4 border border-purple-500/30 text-purple-300 hover:bg-purple-500/10 font-semibold rounded-xl transition-all duration-300 text-center"
+              className="w-full sm:w-auto px-8 py-4 border border-green-300 text-green-700 hover:bg-green-50 font-semibold rounded-xl transition-all duration-300 text-center"
             >
               {hero.secondaryCtaText} →
             </Link>
           </div>
 
           {/* Trust indicators */}
-          <div className="mt-16 flex flex-wrap items-center justify-center gap-6 sm:gap-8 text-sm text-gray-400">
+          <div className="mt-16 flex flex-wrap items-center justify-center gap-6 sm:gap-8 text-sm text-gray-500">
             <div className="flex items-center space-x-2">
-              <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+              <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
               <span>No Artificial Preservatives</span>
             </div>
             <div className="flex items-center space-x-2">
-              <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+              <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
               <span>Vegan</span>
             </div>
             <div className="flex items-center space-x-2">
-              <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+              <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
               <span>60 Capsules</span>
             </div>
           </div>
@@ -104,24 +103,24 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 sm:py-28 bg-[#0a0a1a]">
+      <section className="py-20 sm:py-28 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Pure Ingredients, Powerful Results</h2>
-            <p className="text-gray-400 max-w-2xl mx-auto">Every capsule is crafted with nature&apos;s finest cognitive-enhancing ingredients, backed by science and free from anything artificial.</p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">Pure Ingredients, Powerful Results</h2>
+            <p className="text-gray-500 max-w-2xl mx-auto">Every capsule is crafted with nature&apos;s finest cognitive-enhancing ingredients, backed by science and free from anything artificial.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
             {features.map((feature, index) => (
               <div
                 key={index}
-                className="group p-6 sm:p-8 rounded-2xl bg-gradient-to-b from-[#12122a] to-[#0d0d20] border border-purple-900/20 hover:border-purple-500/30 transition-all duration-300"
+                className="group p-6 sm:p-8 rounded-2xl bg-white border border-gray-200 hover:border-green-300 hover:shadow-lg transition-all duration-300"
               >
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-cyan-500/20 flex items-center justify-center mb-4 text-purple-400 group-hover:text-cyan-400 transition-colors">
+                <div className="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center mb-4 text-green-600 group-hover:bg-green-100 transition-colors">
                   <FeatureIcon icon={feature.icon} />
                 </div>
-                <h3 className="text-lg font-semibold text-white mb-2">{feature.title}</h3>
-                <p className="text-gray-400 text-sm leading-relaxed">{feature.description}</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">{feature.title}</h3>
+                <p className="text-gray-500 text-sm leading-relaxed">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -129,11 +128,11 @@ export default function Home() {
       </section>
 
       {/* Benefits Section */}
-      <section className="py-20 sm:py-28 bg-gradient-to-b from-[#0a0a1a] via-[#0d1033] to-[#0a0a1a]">
+      <section className="py-20 sm:py-28 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">{benefits.headline}</h2>
-            <p className="text-gray-400 max-w-2xl mx-auto">{benefits.subheadline}</p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">{benefits.headline}</h2>
+            <p className="text-gray-500 max-w-2xl mx-auto">{benefits.subheadline}</p>
           </div>
 
           <div className="space-y-16 sm:space-y-24">
@@ -143,23 +142,23 @@ export default function Home() {
                 className={`flex flex-col ${index % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse'} items-center gap-8 lg:gap-16`}
               >
                 <div className="flex-1">
-                  <div className="w-full aspect-video rounded-2xl bg-gradient-to-br from-purple-900/40 to-cyan-900/40 border border-purple-800/20 flex items-center justify-center">
+                  <div className="w-full aspect-video rounded-2xl bg-gradient-to-br from-green-50 to-emerald-50 border border-green-100 flex items-center justify-center">
                     <div className="text-center p-8">
-                      <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-purple-500/30 to-cyan-500/30 flex items-center justify-center mb-4">
-                        <svg className="w-8 h-8 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <div className="w-16 h-16 mx-auto rounded-full bg-green-100 flex items-center justify-center mb-4">
+                        <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                         </svg>
                       </div>
-                      <p className="text-purple-300 text-sm font-medium">{benefit.title}</p>
+                      <p className="text-green-700 text-sm font-medium">{benefit.title}</p>
                     </div>
                   </div>
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-2xl sm:text-3xl font-bold text-white mb-4">{benefit.title}</h3>
-                  <p className="text-gray-300 leading-relaxed text-lg">{benefit.description}</p>
+                  <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">{benefit.title}</h3>
+                  <p className="text-gray-600 leading-relaxed text-lg">{benefit.description}</p>
                   <Link
                     href="/product"
-                    className="inline-flex items-center mt-6 text-purple-400 hover:text-cyan-400 font-medium transition-colors"
+                    className="inline-flex items-center mt-6 text-green-700 hover:text-green-800 font-medium transition-colors"
                   >
                     Learn more
                     <svg className="w-4 h-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -174,26 +173,22 @@ export default function Home() {
       </section>
 
       {/* Product CTA Section */}
-      <section className="py-20 sm:py-28 bg-[#0a0a1a]">
+      <section className="py-20 sm:py-28 bg-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="relative rounded-3xl overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-900/80 to-blue-900/80" />
-            <div className="absolute inset-0">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/20 rounded-full blur-3xl" />
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl" />
-            </div>
+            <div className="absolute inset-0 bg-gradient-to-r from-green-700 to-emerald-800" />
             <div className="relative z-10 p-8 sm:p-12 lg:p-16 text-center">
               <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
                 Ready to Boost Your Brain Power?
               </h2>
-              <p className="text-gray-200 max-w-2xl mx-auto mb-8 text-lg">
+              <p className="text-green-100 max-w-2xl mx-auto mb-8 text-lg">
                 Join thousands of Australians who have transformed their cognitive health with Brain Boost 1000. 
                 100% natural, ARTG listed, and backed by science.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link
                   href="/product"
-                  className="w-full sm:w-auto px-8 py-4 bg-white text-purple-900 font-bold rounded-xl hover:bg-gray-100 transition-all duration-300 shadow-lg text-center"
+                  className="w-full sm:w-auto px-8 py-4 bg-white text-green-800 font-bold rounded-xl hover:bg-gray-100 transition-all duration-300 shadow-lg text-center"
                 >
                   Shop Now &mdash; ${productContent.price} AUD
                 </Link>
@@ -210,24 +205,24 @@ export default function Home() {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-20 sm:py-28 bg-gradient-to-b from-[#0a0a1a] to-[#0d0d20]">
+      <section className="py-20 sm:py-28 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">What Our Customers Say</h2>
-            <p className="text-gray-400 max-w-2xl mx-auto">Real reviews from real Australians who transformed their cognitive health with Neurotonics.</p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">What Our Customers Say</h2>
+            <p className="text-gray-500 max-w-2xl mx-auto">Real reviews from real Australians who transformed their cognitive health with Neurotonics.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
             {testimonials.map((testimonial, index) => (
               <div
                 key={index}
-                className="p-6 sm:p-8 rounded-2xl bg-[#12122a] border border-purple-900/20 hover:border-purple-500/30 transition-all duration-300"
+                className="p-6 sm:p-8 rounded-2xl bg-white border border-gray-200 hover:shadow-lg transition-all duration-300"
               >
                 <StarRating rating={testimonial.rating} />
-                <p className="text-gray-300 mt-4 mb-6 text-sm leading-relaxed">&ldquo;{testimonial.text}&rdquo;</p>
+                <p className="text-gray-600 mt-4 mb-6 text-sm leading-relaxed">&ldquo;{testimonial.text}&rdquo;</p>
                 <div>
-                  <p className="text-white font-semibold">{testimonial.name}</p>
-                  <p className="text-gray-500 text-sm">{testimonial.location}</p>
+                  <p className="text-gray-900 font-semibold">{testimonial.name}</p>
+                  <p className="text-gray-400 text-sm">{testimonial.location}</p>
                 </div>
               </div>
             ))}
@@ -236,15 +231,15 @@ export default function Home() {
       </section>
 
       {/* Quiz CTA */}
-      <section className="py-20 sm:py-28 bg-[#0a0a1a]">
+      <section className="py-20 sm:py-28 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Not Sure Where to Start?</h2>
-          <p className="text-gray-400 max-w-2xl mx-auto mb-8 text-lg">
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">Not Sure Where to Start?</h2>
+          <p className="text-gray-500 max-w-2xl mx-auto mb-8 text-lg">
             Take our quick 2-minute quiz and we&apos;ll recommend the perfect solution based on your unique needs.
           </p>
           <Link
             href="/quiz"
-            className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg shadow-cyan-500/25"
+            className="inline-flex items-center px-8 py-4 bg-green-700 hover:bg-green-800 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg shadow-green-700/20"
           >
             Find Your Solution
             <svg className="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
