@@ -14,7 +14,7 @@ export default function AnnouncementBar() {
       {announcement.link && (
         <>
           {' '}
-          <Link href={announcement.link} className="underline font-semibold hover:text-amber-300 transition-colors">
+          <Link href={announcement.link} className="underline font-semibold hover:text-brand-warm transition-colors">
             {announcement.linkText}
           </Link>
         </>

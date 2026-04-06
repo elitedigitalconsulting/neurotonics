@@ -15,7 +15,7 @@ export default function Header() {
       <div className="bg-brand-navy text-white text-center py-2 px-4 text-xs sm:text-sm tracking-wide">
         <span>{siteContent.announcement.text}</span>
         {' '}
-        <Link href={siteContent.announcement.link} className="underline font-semibold hover:text-amber-300 transition-colors">
+        <Link href={siteContent.announcement.link} className="underline font-semibold hover:text-brand-warm transition-colors">
           {siteContent.announcement.linkText}
         </Link>
       </div>

@@ -53,7 +53,7 @@ export default function Home() {
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
             <div>
               <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/10 border border-white/20 mb-6">
-                <span className="text-white/90 text-sm font-medium">🧠 Australia&apos;s Trusted Cognitive Wellness Brand</span>
+                <span className="text-white/90 text-sm font-medium">🧠 {siteContent.brand.tagline}</span>
               </div>
 
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight tracking-tight">
