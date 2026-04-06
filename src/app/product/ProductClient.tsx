@@ -24,14 +24,12 @@ export default function ProductClient() {
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
 
   const handleAddToCart = () => {
-    for (let i = 0; i < quantity; i++) {
-      addItem({
-        id: productContent.slug,
-        name: productContent.name,
-        price: productContent.price,
-        image: productContent.images[0].src,
-      });
-    }
+    addItem({
+      id: productContent.slug,
+      name: productContent.name,
+      price: productContent.price,
+      image: productContent.images[0].src,
+    }, quantity);
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 2000);
   };
