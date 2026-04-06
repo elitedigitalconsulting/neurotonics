@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { z } from 'zod/v4';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
+function getStripeClient() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) {
+    throw new Error('STRIPE_SECRET_KEY is not configured');
+  }
+  return new Stripe(key);
+}
 
 const paymentSchema = z.object({
   amount: z.number().positive('Amount must be positive'),
@@ -26,6 +32,7 @@ export async function POST(request: NextRequest) {
 
     const { amount, shipping } = result.data;
 
+    const stripe = getStripeClient();
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // Convert to cents
       currency: 'aud',
