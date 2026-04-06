@@ -70,7 +70,7 @@ function CheckoutForm({ shipping }: { shipping: ShippingResult | null }) {
           <h2 className="text-lg font-semibold text-gray-900 mb-2">Delivery</h2>
           <div className="flex justify-between text-sm">
             <span className="text-gray-600">{shipping.zone}</span>
-            <span className="text-green-600">${shipping.fee.toFixed(2)} AUD</span>
+            <span className="text-blue-600">${shipping.fee.toFixed(2)} AUD</span>
           </div>
           <p className="text-gray-500 text-xs mt-1">{shipping.estimatedDays}</p>
         </div>
@@ -85,7 +85,7 @@ function CheckoutForm({ shipping }: { shipping: ShippingResult | null }) {
       <button
         type="submit"
         disabled={!stripe || isProcessing}
-        className="w-full py-4 bg-green-700 hover:bg-green-800 text-white font-semibold rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full py-4 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isProcessing ? 'Processing...' : 'Pay Now'}
       </button>
@@ -97,7 +97,7 @@ function SuccessView() {
   return (
     <main className="bg-white min-h-screen flex items-center justify-center">
       <div className="text-center px-4 max-w-lg">
-        <div className="w-20 h-20 mx-auto rounded-full bg-green-600 flex items-center justify-center mb-6">
+        <div className="w-20 h-20 mx-auto rounded-full bg-blue-600 flex items-center justify-center mb-6">
           <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
@@ -108,7 +108,7 @@ function SuccessView() {
         </p>
         <Link
           href="/"
-          className="inline-flex items-center px-6 py-3 bg-green-700 hover:bg-green-800 text-white font-semibold rounded-xl"
+          className="inline-flex items-center px-6 py-3 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-xl"
         >
           Return Home
         </Link>
@@ -124,7 +124,7 @@ function EmptyCartView() {
         <h1 className="text-2xl font-bold text-gray-900 mb-4">Your cart is empty</h1>
         <Link
           href="/product"
-          className="inline-flex items-center px-6 py-3 bg-green-700 hover:bg-green-800 text-white font-semibold rounded-xl"
+          className="inline-flex items-center px-6 py-3 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-xl"
         >
           Shop Brain Boost 1000
         </Link>
@@ -183,7 +183,7 @@ function CheckoutContent({ postcode }: { postcode: string | null }) {
   return (
     <main className="bg-white min-h-screen">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-16">
-        <Link href="/cart" className="inline-flex items-center text-gray-500 hover:text-green-700 text-sm mb-8 transition-colors">
+        <Link href="/cart" className="inline-flex items-center text-gray-500 hover:text-blue-700 text-sm mb-8 transition-colors">
           <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
@@ -224,11 +224,11 @@ function CheckoutContent({ postcode }: { postcode: string | null }) {
             ) : !error ? (
               <div className="flex items-center justify-center py-16">
                 <div className="text-center">
-                  <div className="w-8 h-8 border-2 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                  <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
                   <p className="text-gray-500 text-sm">Initializing secure payment...</p>
                   <button
                     onClick={initialize}
-                    className="mt-4 px-6 py-2.5 bg-green-700 hover:bg-green-800 text-white font-medium rounded-xl text-sm transition-all duration-300"
+                    className="mt-4 px-6 py-2.5 bg-blue-700 hover:bg-blue-800 text-white font-medium rounded-xl text-sm transition-all duration-300"
                   >
                     Load Payment
                   </button>
@@ -246,8 +246,8 @@ function CheckoutContent({ postcode }: { postcode: string | null }) {
                 {items.map((item) => (
                   <div key={item.id} className="flex justify-between items-center text-sm">
                     <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
-                        <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                        <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                         </svg>
                       </div>
@@ -279,7 +279,7 @@ function CheckoutContent({ postcode }: { postcode: string | null }) {
               </div>
 
               <div className="mt-4 flex items-center space-x-2 text-xs text-gray-500">
-                <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
                 <span>Secured with SSL encryption</span>

@@ -46,7 +46,7 @@ export default function QuizClient() {
       <main className="bg-white min-h-screen flex items-center justify-center">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
           <div className="text-center mb-12">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-600 mb-6">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-blue-600 mb-6">
               <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
@@ -60,7 +60,7 @@ export default function QuizClient() {
             <ul className="space-y-4">
               {result.tips.map((tip, index) => (
                 <li key={index} className="flex items-start space-x-3">
-                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-100 text-green-700 text-xs font-bold flex-shrink-0 mt-0.5">
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex-shrink-0 mt-0.5">
                     {index + 1}
                   </span>
                   <span className="text-gray-600 text-sm leading-relaxed">{tip}</span>
@@ -76,13 +76,13 @@ export default function QuizClient() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href={result.ctaLink}
-              className="w-full sm:w-auto px-8 py-4 bg-green-700 hover:bg-green-800 text-white font-semibold rounded-xl transition-all duration-300 text-center"
+              className="w-full sm:w-auto px-8 py-4 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-xl transition-all duration-300 text-center"
             >
               {result.ctaText}
             </Link>
             <button
               onClick={handleRestart}
-              className="w-full sm:w-auto px-8 py-4 border border-green-200 text-green-700 hover:bg-green-50 font-medium rounded-xl transition-all duration-300 text-center"
+              className="w-full sm:w-auto px-8 py-4 border border-blue-200 text-blue-700 hover:bg-blue-50 font-medium rounded-xl transition-all duration-300 text-center"
             >
               Retake Quiz
             </button>
@@ -111,7 +111,7 @@ export default function QuizClient() {
           </div>
           <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
             <div
-              className="h-full bg-green-600 rounded-full transition-all duration-500 ease-out"
+              className="h-full bg-blue-600 rounded-full transition-all duration-500 ease-out"
               style={{ width: `${progress}%` }}
               role="progressbar"
               aria-valuenow={Math.round(progress)}
@@ -133,8 +133,8 @@ export default function QuizClient() {
                   onClick={() => handleAnswer(question.id, option.value)}
                   className={`p-4 sm:p-5 rounded-xl border text-left transition-all duration-200 ${
                     isSelected
-                      ? 'bg-green-50 border-green-600 text-gray-900'
-                      : 'bg-white border-gray-200 text-gray-600 hover:border-green-300 hover:bg-green-50/50'
+                      ? 'bg-blue-50 border-blue-600 text-gray-900'
+                      : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300 hover:bg-blue-50/50'
                   }`}
                 >
                   <p className="font-medium text-sm sm:text-base">{option.label}</p>

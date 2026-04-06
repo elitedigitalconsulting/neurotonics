@@ -57,9 +57,9 @@ export default function ProductClient() {
         {/* Breadcrumb */}
         <nav className="mb-8 text-sm" aria-label="Breadcrumb">
           <ol className="flex items-center space-x-2 text-gray-500">
-            <li><Link href="/" className="hover:text-green-600 transition-colors">Home</Link></li>
+            <li><Link href="/" className="hover:text-blue-600 transition-colors">Home</Link></li>
             <li><span className="mx-2">/</span></li>
-            <li className="text-green-600">{productContent.name}</li>
+            <li className="text-blue-600">{productContent.name}</li>
           </ol>
         </nav>
 
@@ -68,12 +68,12 @@ export default function ProductClient() {
           <div className="space-y-4">
             <div className="aspect-square rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-center overflow-hidden">
               <div className="text-center p-8">
-                <div className="w-32 h-32 mx-auto rounded-full bg-green-50 flex items-center justify-center mb-4">
-                  <svg className="w-16 h-16 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-32 h-32 mx-auto rounded-full bg-blue-50 flex items-center justify-center mb-4">
+                  <svg className="w-16 h-16 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                   </svg>
                 </div>
-                <p className="text-green-700 font-medium text-lg">{productContent.name}</p>
+                <p className="text-blue-700 font-medium text-lg">{productContent.name}</p>
                 <p className="text-gray-500 text-sm mt-1">{productContent.images[activeImageIndex]?.alt}</p>
               </div>
             </div>
@@ -86,12 +86,12 @@ export default function ProductClient() {
                   onClick={() => setActiveImageIndex(index)}
                   className={`flex-1 aspect-square rounded-xl bg-gray-50 border ${
                     activeImageIndex === index
-                      ? 'border-green-600'
-                      : 'border-gray-200 hover:border-green-400'
+                      ? 'border-blue-600'
+                      : 'border-gray-200 hover:border-blue-400'
                   } transition-colors flex items-center justify-center p-2`}
                   aria-label={`View ${image.alt}`}
                 >
-                  <svg className={`w-6 h-6 ${activeImageIndex === index ? 'text-green-600' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className={`w-6 h-6 ${activeImageIndex === index ? 'text-blue-600' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </button>
@@ -106,7 +106,7 @@ export default function ProductClient() {
               {productContent.badges.map((badge) => (
                 <span
                   key={badge}
-                  className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200"
+                  className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200"
                 >
                   {badge}
                 </span>
@@ -119,7 +119,7 @@ export default function ProductClient() {
 
             {/* Price */}
             <div className="flex items-baseline space-x-3">
-              <span className="text-4xl font-bold text-green-700">
+              <span className="text-4xl font-bold text-blue-700">
                 ${productContent.price.toFixed(2)}
               </span>
               <span className="text-gray-500 text-lg">AUD</span>
@@ -128,7 +128,7 @@ export default function ProductClient() {
             {/* Supply info */}
             <div className="flex items-center space-x-4 text-sm text-gray-500">
               <span className="flex items-center space-x-1">
-                <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
                 <span>{productContent.capsuleCount} capsules</span>
@@ -174,8 +174,8 @@ export default function ProductClient() {
                 onClick={handleAddToCart}
                 className={`w-full py-4 rounded-xl font-semibold text-lg transition-all duration-300 ${
                   addedToCart
-                    ? 'bg-green-600 text-white'
-                    : 'bg-green-700 hover:bg-green-800 text-white shadow-lg shadow-green-700/20 hover:shadow-green-700/30'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-blue-700 hover:bg-blue-800 text-white shadow-lg shadow-blue-700/20 hover:shadow-blue-700/30'
                 }`}
               >
                 {addedToCart ? '✓ Added to Cart!' : `Add to Cart — $${(productContent.price * quantity).toFixed(2)} AUD`}
@@ -183,7 +183,7 @@ export default function ProductClient() {
 
               <Link
                 href="/cart"
-                className="block w-full py-3 text-center border border-green-700 text-green-700 hover:bg-green-50 rounded-xl font-medium transition-all duration-300"
+                className="block w-full py-3 text-center border border-blue-700 text-blue-700 hover:bg-blue-50 rounded-xl font-medium transition-all duration-300"
               >
                 View Cart
               </Link>
@@ -199,12 +199,12 @@ export default function ProductClient() {
                   onChange={(e) => setPostcode(e.target.value.replace(/\D/g, '').slice(0, 4))}
                   placeholder="Enter postcode (e.g. 2000)"
                   maxLength={4}
-                  className="flex-1 px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:border-green-500 transition-colors"
+                  className="flex-1 px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 transition-colors"
                 />
                 <button
                   onClick={handleShippingCalculation}
                   disabled={shippingLoading || postcode.length !== 4}
-                  className="px-6 py-2.5 bg-green-50 text-green-700 border border-green-300 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
+                  className="px-6 py-2.5 bg-blue-50 text-blue-700 border border-blue-300 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
                 >
                   {shippingLoading ? 'Calculating...' : 'Calculate'}
                 </button>
@@ -213,13 +213,13 @@ export default function ProductClient() {
                 <p className="mt-2 text-red-600 text-sm">{shippingError}</p>
               )}
               {shipping && (
-                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex justify-between items-center">
                     <div>
                       <p className="text-gray-900 text-sm font-medium">{shipping.zone}</p>
                       <p className="text-gray-500 text-xs">{shipping.estimatedDays}</p>
                     </div>
-                    <p className="text-green-700 font-semibold">${shipping.fee.toFixed(2)} AUD</p>
+                    <p className="text-blue-700 font-semibold">${shipping.fee.toFixed(2)} AUD</p>
                   </div>
                 </div>
               )}
@@ -246,7 +246,7 @@ export default function ProductClient() {
                 onClick={() => setActiveTab(tab)}
                 className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
                   activeTab === tab
-                    ? 'text-green-600 border-green-600'
+                    ? 'text-blue-600 border-blue-600'
                     : 'text-gray-500 border-transparent hover:text-gray-700'
                 }`}
               >
@@ -270,7 +270,7 @@ export default function ProductClient() {
                   <div key={index} className="p-4 rounded-xl bg-white border border-gray-200">
                     <div className="flex justify-between items-start mb-2">
                       <h4 className="text-gray-900 font-medium">{ingredient.name}</h4>
-                      <span className="text-green-600 text-sm font-semibold">{ingredient.amount}</span>
+                      <span className="text-blue-600 text-sm font-semibold">{ingredient.amount}</span>
                     </div>
                     <p className="text-gray-500 text-sm">{ingredient.benefit}</p>
                   </div>
@@ -289,7 +289,7 @@ export default function ProductClient() {
                     >
                       <span className="text-gray-900 font-medium pr-4">{item.question}</span>
                       <svg
-                        className={`w-5 h-5 text-green-600 transition-transform flex-shrink-0 ${expandedFaq === index ? 'rotate-180' : ''}`}
+                        className={`w-5 h-5 text-blue-600 transition-transform flex-shrink-0 ${expandedFaq === index ? 'rotate-180' : ''}`}
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"

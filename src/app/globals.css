@@ -3,9 +3,9 @@
 @theme inline {
   --color-background: #ffffff;
   --color-foreground: #1a1a2e;
-  --color-brand-green: #1B7340;
-  --color-brand-green-light: #e8f5e9;
-  --color-brand-green-dark: #145a32;
+  --color-brand-blue: #1d4ed8;
+  --color-brand-blue-light: #dbeafe;
+  --color-brand-blue-dark: #1e3a8a;
   --color-brand-warm: #633519;
   --color-brand-warm-light: #f5f0eb;
   --color-brand-card: #ffffff;
@@ -38,5 +38,5 @@ body {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #1B7340;
+  background: #1d4ed8;
 }

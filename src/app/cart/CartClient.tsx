@@ -49,7 +49,7 @@ export default function CartClient() {
           <p className="text-gray-500 mb-8">Add some products to get started.</p>
           <Link
             href="/product"
-            className="inline-flex items-center px-6 py-3 bg-green-700 hover:bg-green-800 text-white font-semibold rounded-xl transition-all duration-300"
+            className="inline-flex items-center px-6 py-3 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-xl transition-all duration-300"
           >
             Shop Brain Boost 1000
           </Link>
@@ -68,15 +68,15 @@ export default function CartClient() {
           <div className="lg:col-span-2 space-y-4">
             {items.map((item) => (
               <div key={item.id} className="flex items-center gap-4 p-4 sm:p-6 bg-white rounded-2xl border border-gray-200">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-8 h-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                   </svg>
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <h3 className="text-gray-900 font-medium truncate">{item.name}</h3>
-                  <p className="text-green-600 font-semibold">${item.price.toFixed(2)} AUD</p>
+                  <p className="text-blue-600 font-semibold">${item.price.toFixed(2)} AUD</p>
                 </div>
 
                 <div className="flex items-center space-x-2">
@@ -132,12 +132,12 @@ export default function CartClient() {
                       onChange={(e) => setPostcode(e.target.value.replace(/\D/g, '').slice(0, 4))}
                       placeholder="Postcode"
                       maxLength={4}
-                      className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:border-green-500"
+                      className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:border-blue-500"
                     />
                     <button
                       onClick={handleShippingCalculation}
                       disabled={shippingLoading || postcode.length !== 4}
-                      className="px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50 text-xs font-medium"
+                      className="px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 text-xs font-medium"
                     >
                       {shippingLoading ? '...' : 'Go'}
                     </button>
@@ -162,14 +162,14 @@ export default function CartClient() {
 
               <Link
                 href={`/checkout${shipping ? `?postcode=${postcode}` : ''}`}
-                className="block w-full mt-6 py-3.5 bg-green-700 hover:bg-green-800 text-white font-semibold rounded-xl transition-all duration-300 text-center"
+                className="block w-full mt-6 py-3.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-xl transition-all duration-300 text-center"
               >
                 Proceed to Checkout
               </Link>
 
               <Link
                 href="/product"
-                className="block w-full mt-3 py-2.5 text-center text-green-700 hover:text-green-600 text-sm transition-colors"
+                className="block w-full mt-3 py-2.5 text-center text-blue-700 hover:text-blue-600 text-sm transition-colors"
               >
                 ← Continue Shopping
               </Link>
