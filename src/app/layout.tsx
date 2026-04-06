@@ -48,7 +48,7 @@ export default function RootLayout({
       lang="en"
       className="h-full antialiased"
     >
-      <body className="min-h-full flex flex-col bg-[#0a0a1a] text-white">
+      <body className="min-h-full flex flex-col bg-white text-gray-900">
         <CartProvider>
           <Header />
           <div className="flex-1 pt-16 sm:pt-20">{children}</div>

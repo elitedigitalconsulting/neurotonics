@@ -10,8 +10,8 @@ export const metadata: Metadata = {
 export default function CheckoutPage() {
   return (
     <Suspense fallback={
-      <div className="bg-[#0a0a1a] min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+      <div className="bg-white min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
       </div>
     }>
       <CheckoutClient />

@@ -1,6 +1,6 @@
 {
-  "title": "Find Your Perfect Cognitive Solution",
-  "subtitle": "Answer a few quick questions and we'll recommend the right Neurotonics product for you.",
+  "title": "Discover Your Wellness Plan",
+  "subtitle": "Answer a few quick questions and we'll provide personalised tips to help you manage stress and improve your wellbeing.",
   "questions": [
     {
       "id": "primary_concern",
@@ -34,39 +34,91 @@
       ]
     },
     {
-      "id": "supplement_preference",
-      "question": "What's important to you in a supplement?",
+      "id": "current_habits",
+      "question": "Which wellness habits do you currently practise?",
       "options": [
-        { "value": "natural", "label": "100% natural with no artificial ingredients", "icon": "leaf" },
-        { "value": "certified", "label": "Clinically tested and government listed", "icon": "shield" },
-        { "value": "vegan", "label": "Vegan and plant-based", "icon": "sprout" },
-        { "value": "australian", "label": "Made in Australia with local quality standards", "icon": "flag" }
+        { "value": "exercise", "label": "Regular exercise (3+ times per week)", "icon": "activity" },
+        { "value": "meditation", "label": "Meditation or mindfulness", "icon": "heart" },
+        { "value": "sleep", "label": "Consistent 7-9 hours of sleep", "icon": "moon" },
+        { "value": "none", "label": "I'm looking to start healthier habits", "icon": "star" }
       ]
     },
     {
-      "id": "tried_before",
-      "question": "Have you tried cognitive supplements before?",
+      "id": "goal",
+      "question": "What would make the biggest difference in your daily life?",
       "options": [
-        { "value": "never", "label": "No, this would be my first time", "icon": "star" },
-        { "value": "some", "label": "Yes, but they didn't work well", "icon": "thumbs-down" },
-        { "value": "current", "label": "Yes, I'm looking for something better", "icon": "search" },
-        { "value": "natural_only", "label": "Only natural remedies like herbal teas", "icon": "coffee" }
+        { "value": "calm", "label": "Feeling calmer and more in control", "icon": "leaf" },
+        { "value": "sharp", "label": "Thinking more clearly and quickly", "icon": "zap" },
+        { "value": "resilient", "label": "Bouncing back from tough days faster", "icon": "shield" },
+        { "value": "balanced", "label": "Having more balanced energy throughout the day", "icon": "battery" }
       ]
     }
   ],
   "results": {
-    "brain_boost_1000": {
-      "title": "Brain Boost 1000 is Perfect for You!",
-      "description": "Based on your answers, Brain Boost 1000 is the ideal solution for your cognitive needs. Its powerful blend of natural nootropics directly targets your concerns with scientifically-backed ingredients.",
-      "matchReasons": [
-        "Addresses your primary cognitive concern with targeted natural ingredients",
-        "ARTG listed for safety and efficacy — meeting Australia's highest standards",
-        "100% vegan with zero artificial preservatives or additives",
-        "Proudly made in Australia under strict GMP standards",
-        "Clinically studied ingredients like Bacopa Monnieri and Lion's Mane"
+    "brain_fog": {
+      "title": "Your Plan to Beat Brain Fog",
+      "description": "Brain fog can be frustrating, but the good news is that small lifestyle changes can make a big difference. Here are evidence-based strategies tailored to your situation.",
+      "tips": [
+        "Stay hydrated — dehydration is one of the most common causes of mental cloudiness. Aim for 2 litres of water daily.",
+        "Take regular screen breaks — follow the 20-20-20 rule: every 20 minutes, look at something 20 feet away for 20 seconds.",
+        "Prioritise quality sleep — maintain a consistent bedtime and avoid screens for 30 minutes before bed.",
+        "Move your body — even a 10-minute walk can increase blood flow to the brain and clear mental haze.",
+        "Eat brain-friendly foods — omega-3 rich foods like salmon, walnuts, and leafy greens support cognitive function."
       ],
-      "ctaText": "Get Brain Boost 1000 — $79.90 AUD",
-      "ctaLink": "/product"
+      "ctaText": "Learn More About Cognitive Wellness",
+      "ctaLink": "/"
+    },
+    "stress": {
+      "title": "Your Personalised Stress Management Plan",
+      "description": "Stress is your body's natural response to challenges, but chronic stress can take a toll on your wellbeing. These practical strategies can help you regain control.",
+      "tips": [
+        "Practise box breathing — inhale for 4 counts, hold for 4, exhale for 4, hold for 4. Repeat 4 times when you feel overwhelmed.",
+        "Schedule daily decompression time — even 15 minutes of an enjoyable activity (reading, walking, music) helps reset your nervous system.",
+        "Limit caffeine after midday — caffeine can amplify anxiety and disrupt the sleep you need to recover from stress.",
+        "Try progressive muscle relaxation — tense and release each muscle group from toes to head before bed.",
+        "Connect with others — social support is one of the strongest buffers against chronic stress. Reach out to a friend or loved one regularly."
+      ],
+      "ctaText": "Explore More Wellness Tips",
+      "ctaLink": "/"
+    },
+    "memory": {
+      "title": "Tips to Strengthen Your Memory",
+      "description": "Memory is like a muscle — it gets stronger with the right habits. These science-backed techniques can help you retain and recall information more effectively.",
+      "tips": [
+        "Use spaced repetition — review new information at increasing intervals (1 day, 3 days, 7 days) to move it into long-term memory.",
+        "Get 7-9 hours of quality sleep — your brain consolidates memories during deep sleep, so good rest is essential.",
+        "Stay physically active — regular aerobic exercise increases the size of the hippocampus, the brain area involved in memory.",
+        "Reduce multitasking — focus on one thing at a time to improve encoding. It takes about 8 seconds of focused attention to commit something to memory.",
+        "Eat a Mediterranean-style diet — rich in fruits, vegetables, whole grains, and healthy fats, this diet is linked to slower cognitive decline."
+      ],
+      "ctaText": "Discover More Brain Health Tips",
+      "ctaLink": "/"
+    },
+    "focus": {
+      "title": "Your Guide to Better Focus",
+      "description": "In a world full of distractions, maintaining focus is a skill that can be trained. Here are proven strategies to sharpen your concentration.",
+      "tips": [
+        "Try the Pomodoro Technique — work in focused 25-minute blocks, then take a 5-minute break. After 4 blocks, take a longer 15-30 minute break.",
+        "Create a distraction-free zone — silence notifications, use website blockers, and keep your workspace tidy during focused work.",
+        "Practise mindfulness meditation — even 10 minutes daily trains your brain to return attention to the present moment.",
+        "Exercise regularly — physical activity boosts dopamine and norepinephrine, both critical for sustained attention.",
+        "Plan your hardest tasks for your peak energy hours — most people focus best in the morning. Identify your personal peak and protect that time."
+      ],
+      "ctaText": "More Focus & Productivity Tips",
+      "ctaLink": "/"
+    },
+    "energy": {
+      "title": "Your Plan to Boost Mental Energy",
+      "description": "Mental fatigue often stems from lifestyle factors that can be adjusted. These strategies will help you feel more alert and energised throughout the day.",
+      "tips": [
+        "Optimise your sleep schedule — go to bed and wake up at the same time every day, even on weekends, to regulate your circadian rhythm.",
+        "Eat balanced meals — combine protein, complex carbohydrates, and healthy fats to avoid blood sugar crashes that drain mental energy.",
+        "Take movement breaks — stand up and move for 5 minutes every hour. Short walks are especially effective at combating afternoon slumps.",
+        "Stay hydrated — even mild dehydration (1-2%) can significantly impair energy levels and cognitive performance.",
+        "Limit sugar-heavy snacks — they cause rapid energy spikes followed by crashes. Choose nuts, fruit, or yoghurt instead."
+      ],
+      "ctaText": "Explore More Wellness Resources",
+      "ctaLink": "/"
     }
   }
 }

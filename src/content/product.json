@@ -7,16 +7,8 @@
   "longDescription": "Brain Boost 1000 is a premium cognitive supplement formulated with nature's most powerful nootropic ingredients. Each capsule delivers a potent blend of Bacopa Monnieri, Lion's Mane Mushroom, Ginkgo Biloba, and Rhodiola Rosea — scientifically studied ingredients known to support mental clarity, memory, and stress resilience.\n\nDesigned for those who refuse to compromise on quality, Brain Boost 1000 contains zero artificial preservatives, zero artificial additives, and is 100% vegan. Proudly made in Australia and listed on the Australian Register of Therapeutic Goods (ARTG).",
   "images": [
     {
-      "src": "/images/product-main.png",
+      "src": "https://github.com/user-attachments/assets/b01734de-cd2c-4003-86df-ff25d9dae581",
       "alt": "Brain Boost 1000 - Neurotonics cognitive supplement bottle"
-    },
-    {
-      "src": "/images/product-ingredients.png",
-      "alt": "Brain Boost 1000 - Natural ingredients"
-    },
-    {
-      "src": "/images/product-lifestyle.png",
-      "alt": "Brain Boost 1000 - Active lifestyle"
     }
   ],
   "badges": [
