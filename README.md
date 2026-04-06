@@ -65,38 +65,30 @@ All site content is stored in JSON files under `src/content/`. You can edit text
 **Example — Update images:**
 Replace image files in `public/images/` and update the paths in the JSON files.
 
-## Getting Started
+## Quick Start
+
+```bash
+npm install
+npm run dev
+```
+
+Open **http://localhost:3000** in your browser. That's it!
+
+> `.env.local` is created automatically from `.env.example` during install. The site is fully browsable without real Stripe keys — only the payment step requires them.
+
+### Stripe Payments (optional)
+
+To enable checkout payments, edit `.env.local` with your [Stripe test keys](https://dashboard.stripe.com/test/apikeys):
+
+```
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_your_key_here
+STRIPE_SECRET_KEY=sk_test_your_key_here
+```
 
 ### Prerequisites
 
 - Node.js 18+
 - npm 9+
-
-### Installation
-
-```bash
-npm install
-```
-
-### Environment Variables
-
-Copy the example env file and add your Stripe keys:
-
-```bash
-cp .env.example .env.local
-```
-
-Edit `.env.local`:
-```
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_your_key_here
-STRIPE_SECRET_KEY=sk_live_your_key_here
-```
-
-### Development
-
-```bash
-npm run dev
-```
 
 ### Production Build
 

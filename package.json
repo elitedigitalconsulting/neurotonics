@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "node -e 'var fs=require(\"fs\");if(fs.existsSync(\".env.local\")===false&&fs.existsSync(\".env.example\")){fs.copyFileSync(\".env.example\",\".env.local\");console.log(\"Created .env.local from .env.example — update it with your Stripe keys\")}'"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.1.0",
