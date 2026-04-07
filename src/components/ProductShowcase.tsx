@@ -140,7 +140,7 @@ export default function ProductShowcase() {
                   href="/product"
                   className="btn-glow relative flex-1 px-8 py-4 bg-white text-brand-navy font-bold rounded-xl text-center shadow-xl hover:shadow-2xl hover:scale-[1.03] active:scale-[0.98] transition-all duration-300 text-sm sm:text-base"
                 >
-                  Shop Now — ${productContent.price.toFixed(2)} {productContent.currency}
+                  Buy Now — ${productContent.price.toFixed(2)} {productContent.currency}
                 </Link>
                 <Link
                   href="/product"
