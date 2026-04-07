@@ -31,10 +31,10 @@ export default function AnimatedCounter({
 
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    // Reduced-motion: schedule to avoid sync setState in effect, then bail
+    // Reduced-motion: set final value immediately without scheduling
     if (reducedMotion) {
-      const id = setTimeout(() => setValue(target), 0);
-      return () => clearTimeout(id);
+      setValue(target);
+      return;
     }
 
     let rafId: number | undefined;

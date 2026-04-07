@@ -15,6 +15,8 @@ import Image from 'next/image';
 import siteContent from '@/content/site.json';
 import productContent from '@/content/product.json';
 
+const MAX_TILT_DEGREES = 8;
+
 export default function ParallaxHero() {
   const heroRef    = useRef<HTMLElement>(null);
   const bgRef      = useRef<HTMLDivElement>(null);
@@ -71,9 +73,8 @@ export default function ParallaxHero() {
         const dx = (e.clientX - cx) / (rect.width  / 2); // –1 … 1
         const dy = (e.clientY - cy) / (rect.height / 2); // –1 … 1
 
-        const MAX = 8;
-        const rotX = (-dy * MAX).toFixed(2);
-        const rotY = ( dx * MAX).toFixed(2);
+        const rotX = (-dy * MAX_TILT_DEGREES).toFixed(2);
+        const rotY = ( dx * MAX_TILT_DEGREES).toFixed(2);
 
         tiltEl.style.transform = `perspective(800px) rotateX(${rotX}deg) rotateY(${rotY}deg)`;
       };

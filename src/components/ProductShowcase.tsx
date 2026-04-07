@@ -17,8 +17,8 @@ const benefits = [
   'Natural & Vegan',
 ];
 
-const STOCK_PERCENT = 70; // visual "sold" percentage
-const UNITS_LEFT = 47;
+const STOCK_PERCENT = productContent.stockPercent;
+const UNITS_LEFT    = productContent.unitsLeft;
 
 export default function ProductShowcase() {
   return (
