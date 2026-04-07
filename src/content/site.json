@@ -83,27 +83,6 @@
       "description": "Natural adaptogens to help your body manage stress and reduce brain fog."
     }
   ],
-  "benefits": {
-    "headline": "Why Choose Neurotonics?",
-    "subheadline": "Thousands of Australians trust Neurotonics for their daily cognitive health.",
-    "items": [
-      {
-        "title": "Combat Brain Fog",
-        "description": "Our natural formula helps clear mental haze so you can think clearly and perform at your best every day.",
-        "image": "/images/benefit-focus.jpg"
-      },
-      {
-        "title": "Manage Stress Naturally",
-        "description": "Powerful adaptogenic herbs work with your body to reduce cortisol levels and promote calm focus.",
-        "image": "/images/benefit-stress.jpg"
-      },
-      {
-        "title": "Boost Memory & Focus",
-        "description": "Clinically studied ingredients support short-term recall, long-term memory formation, and sustained concentration.",
-        "image": "/images/benefit-memory.jpg"
-      }
-    ]
-  },
   "wellness": {
     "headline": "Wellness Hub",
     "subheadline": "Expert tips and insights for your cognitive health journey.",
