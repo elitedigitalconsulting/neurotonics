@@ -140,11 +140,12 @@ function CheckoutContent({
       const country = urlCountry ?? 'AU';
       const shippingId = urlShippingId ?? '';
       const isAustralia = country === 'AU';
-      const validPostcode = isAustralia ? (/^\d{4}$/.test(postcode) ? postcode : null) : '';
 
-      if (validPostcode === null && isAustralia) return; // invalid AU postcode
+      // For Australian addresses, require a valid 4-digit postcode
+      const isValidAuPostcode = /^\d{4}$/.test(postcode);
+      if (isAustralia && !isValidAuPostcode) return;
 
-      const effectivePostcode = validPostcode ?? '';
+      const effectivePostcode = isAustralia ? postcode : '';
       const options = getShippingOptions(effectivePostcode, country, subtotal);
       const match = options.find((o) => o.id === shippingId);
       setShipping(match ?? getDefaultShippingOption(effectivePostcode, country, subtotal));

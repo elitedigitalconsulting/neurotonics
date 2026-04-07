@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/lib/cart';
-import type { ShippingOption } from '@/lib/shipping';
+import { getShippingOptions, getDefaultShippingOption, type ShippingOption } from '@/lib/shipping';
 
 const COUNTRIES = [
   { code: 'AU', name: 'Australia' },
@@ -48,7 +48,21 @@ export default function CartClient() {
     });
   }, [selectedOption, postcode, country, locationEntered]);
 
-  const calculateOptions = useCallback(async () => {
+  const applyShippingOptions = useCallback(
+    (pc: string, ct: string, sub: number) => {
+      const effectivePostcode = ct === 'AU' ? pc : '';
+      const options = getShippingOptions(effectivePostcode, ct, sub);
+      const defaultOption = getDefaultShippingOption(effectivePostcode, ct, sub);
+      setShippingOptions(options);
+      setSelectedOption((prev) => {
+        const stillAvailable = options.find((o) => o.id === prev?.id);
+        return stillAvailable ?? defaultOption;
+      });
+    },
+    [],
+  );
+
+  const calculateOptions = useCallback(() => {
     const isAustralia = country === 'AU';
     if (isAustralia && postcode.length !== 4) {
       setShippingError('Please enter a valid 4-digit Australian postcode.');
@@ -57,52 +71,32 @@ export default function CartClient() {
 
     setShippingLoading(true);
     setShippingError('');
-    setShippingOptions([]);
-    setSelectedOption(null);
 
     try {
-      const { getShippingOptions, getDefaultShippingOption } = await import('@/lib/shipping');
-      const effectivePostcode = isAustralia ? postcode : '';
-      const options = getShippingOptions(effectivePostcode, country, subtotal);
-      const defaultOption = getDefaultShippingOption(effectivePostcode, country, subtotal);
-      setShippingOptions(options);
-      setSelectedOption(defaultOption);
+      applyShippingOptions(postcode, country, subtotal);
       setLocationEntered(true);
     } catch {
       setShippingError('Unable to calculate shipping. Please try again.');
     } finally {
       setShippingLoading(false);
     }
-  }, [country, postcode, subtotal]);
+  }, [applyShippingOptions, country, postcode, subtotal]);
 
   // Recalculate when country changes (non-AU countries don't need a postcode)
   useEffect(() => {
     if (country !== 'AU' && locationEntered) {
       calculateOptions();
     }
-  }, [country]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [country, locationEntered, calculateOptions]);
 
   // Recalculate options when subtotal changes (free shipping threshold may be crossed)
   useEffect(() => {
     if (!locationEntered || shippingOptions.length === 0) return;
-    import('@/lib/shipping').then(({ getShippingOptions, getDefaultShippingOption }) => {
-      const effectivePostcode = country === 'AU' ? postcode : '';
-      const options = getShippingOptions(effectivePostcode, country, subtotal);
-      setShippingOptions(options);
-      // If currently selected option is still available keep it; otherwise use default
-      const stillAvailable = options.find((o) => o.id === selectedOption?.id);
-      if (!stillAvailable) {
-        setSelectedOption(getDefaultShippingOption(effectivePostcode, country, subtotal));
-      }
-    });
-  }, [subtotal]); // eslint-disable-line react-hooks/exhaustive-deps
+    applyShippingOptions(postcode, country, subtotal);
+  }, [subtotal, locationEntered, applyShippingOptions, postcode, country, shippingOptions.length]);
 
   const total = subtotal + (selectedOption?.fee ?? 0);
   const isFreeEligible = subtotal >= 100;
-
-  const handleSelectOption = (option: ShippingOption) => {
-    setSelectedOption(option);
-  };
 
   if (items.length === 0) {
     return (
@@ -310,7 +304,7 @@ export default function CartClient() {
                           name="shipping-option"
                           value={option.id}
                           checked={isSelected}
-                          onChange={() => handleSelectOption(option)}
+                          onChange={() => setSelectedOption(option)}
                           className="mt-0.5 accent-brand-primary"
                         />
                         <div className="flex-1 min-w-0">
