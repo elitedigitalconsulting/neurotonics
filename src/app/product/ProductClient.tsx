@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useCart } from '@/lib/cart';
 import productContent from '@/content/product.json';
 
@@ -14,25 +15,24 @@ interface ShippingResult {
 
 export default function ProductClient() {
   const { addItem } = useCart();
+  const router = useRouter();
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<'description' | 'ingredients' | 'faq'>('description');
   const [postcode, setPostcode] = useState('');
   const [shipping, setShipping] = useState<ShippingResult | null>(null);
   const [shippingError, setShippingError] = useState('');
   const [shippingLoading, setShippingLoading] = useState(false);
-  const [addedToCart, setAddedToCart] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
 
-  const handleAddToCart = () => {
+  const handleBuyNow = () => {
     addItem({
       id: productContent.slug,
       name: productContent.name,
       price: productContent.price,
       image: productContent.images[0].src,
     }, quantity);
-    setAddedToCart(true);
-    setTimeout(() => setAddedToCart(false), 2000);
+    router.push('/checkout');
   };
 
   const handleShippingCalculation = async () => {
@@ -177,22 +177,11 @@ export default function ProductClient() {
               </div>
 
               <button
-                onClick={handleAddToCart}
-                className={`w-full py-4 rounded-xl font-semibold text-lg transition-all duration-300 ${
-                  addedToCart
-                    ? 'bg-brand-primary text-white'
-                    : 'bg-brand-primary hover:bg-brand-primary-dark text-white shadow-lg shadow-brand-primary/20 hover:shadow-brand-primary/30'
-                }`}
+                onClick={handleBuyNow}
+                className="w-full py-4 rounded-xl font-semibold text-lg transition-all duration-300 bg-brand-primary hover:bg-brand-primary-dark text-white shadow-lg shadow-brand-primary/20 hover:shadow-brand-primary/30"
               >
-                {addedToCart ? '✓ Added to Cart!' : `Add to Cart — $${(productContent.price * quantity).toFixed(2)} AUD`}
+                Buy Now — ${(productContent.price * quantity).toFixed(2)} AUD
               </button>
-
-              <Link
-                href="/cart"
-                className="block w-full py-3 text-center border border-brand-primary text-brand-primary hover:bg-brand-primary-light rounded-xl font-medium transition-all duration-300"
-              >
-                View Cart
-              </Link>
             </div>
 
             {/* Shipping Calculator */}
