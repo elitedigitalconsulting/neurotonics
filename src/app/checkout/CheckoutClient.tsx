@@ -153,11 +153,10 @@ function CheckoutContent() {
 
     // Re-read shipping from localStorage in case it changed since mount
     const saved = loadShippingSelection();
-    const shippingPayload = saved
-      ? { zone: saved.selectedOption.name, fee: saved.selectedOption.fee }
-      : shippingState
-        ? { zone: shippingState.selectedOption.name, fee: shippingState.selectedOption.fee }
-        : null;
+    const resolvedShipping = saved ?? shippingState;
+    const shippingPayload = resolvedShipping
+      ? { zone: resolvedShipping.selectedOption.name, fee: resolvedShipping.selectedOption.fee }
+      : null;
 
     try {
       const res = await fetch(`${apiUrl}/create-checkout-session`, {
@@ -270,7 +269,7 @@ function CheckoutContent() {
             {/* Checkout button */}
             <button
               onClick={handleCheckout}
-              disabled={isLoading}
+              disabled={isLoading || !shippingState}
               className="w-full py-4 bg-brand-primary hover:bg-brand-primary-dark text-white font-semibold rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isLoading ? (
