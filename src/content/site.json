@@ -193,7 +193,6 @@
   },
   "navigation": [
     { "label": "Shop", "href": "/product" },
-    { "label": "Wellness Quiz", "href": "/quiz" },
-    { "label": "About", "href": "/" }
+    { "label": "Wellness Quiz", "href": "/quiz" }
   ]
 }
