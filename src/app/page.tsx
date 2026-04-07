@@ -6,7 +6,6 @@ import productContent from '@/content/product.json';
 import ParallaxHero    from '@/components/ParallaxHero';
 import ScrollReveal    from '@/components/ScrollReveal';
 import ParallaxSection from '@/components/ParallaxSection';
-import StatsSection    from '@/components/StatsSection';
 import ProductShowcase from '@/components/ProductShowcase';
 
 /* ── Shared icon set ────────────────────────────────────────────── */
@@ -73,9 +72,6 @@ export default function Home() {
           </ScrollReveal>
         </div>
       </section>
-
-      {/* ━━━━ 2b. STATS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <StatsSection />
 
       {/* ━━━━ 3. SHOP BY BENEFIT ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <section className="py-20 sm:py-28 bg-white">
