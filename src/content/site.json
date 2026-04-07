@@ -8,12 +8,12 @@
   "announcement": {
     "text": "Free shipping on orders over $99 | ARTG Listed | Made in Australia",
     "link": "/product",
-    "linkText": "Shop Now"
+    "linkText": "Buy Now"
   },
   "hero": {
     "headline": "Unlock Your Mind's Full Potential",
     "subheadline": "Premium, science-backed cognitive supplements made with 100% natural ingredients. ARTG listed. Vegan. Made in Australia.",
-    "ctaText": "Shop Now",
+    "ctaText": "Buy Now",
     "ctaLink": "/product",
     "secondaryCtaText": "Discover Your Wellness Plan",
     "secondaryCtaLink": "/quiz",

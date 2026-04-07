@@ -47,7 +47,7 @@ function Stars({ rating }: { rating: number }) {
 
 /* ── Page ───────────────────────────────────────────────────────── */
 export default function Home() {
-  const { categories, features, wellness, newsletter, testimonials } = siteContent;
+  const { categories, features, newsletter, testimonials } = siteContent;
 
   return (
     <main>
@@ -197,57 +197,6 @@ export default function Home() {
           </div>
         </div>
       </ParallaxSection>
-
-      {/* ━━━━ 7. WELLNESS HUB – articles ━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <section className="py-20 sm:py-28 bg-brand-gray">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
-          <ScrollReveal animation="fade-up" className="text-center mb-14">
-            <p className="text-xs font-semibold tracking-[0.2em] uppercase text-brand-primary mb-3">
-              Wellness Hub
-            </p>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-brand-navy tracking-tight mb-4">
-              {wellness.headline}
-            </h2>
-            <p className="text-gray-500 max-w-xl mx-auto leading-relaxed">
-              {wellness.subheadline}
-            </p>
-          </ScrollReveal>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {wellness.articles.map((article, index) => (
-              <ScrollReveal key={index} animation="fade-up" delay={index * 100}>
-                <Link
-                  href={article.link}
-                  className="group bg-white rounded-2xl overflow-hidden border border-brand-border card-hover flex flex-col h-full"
-                >
-                  {/* Placeholder illustration */}
-                  <div className="h-44 bg-gradient-to-br from-brand-primary-light to-brand-warm-light flex items-center justify-center shrink-0">
-                    <svg className="w-14 h-14 text-brand-primary/25" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
-                  </div>
-                  <div className="p-6 flex flex-col flex-1">
-                    <span className="inline-block px-2.5 py-1 rounded-full bg-brand-green-light text-brand-green text-xs font-semibold mb-3">
-                      {article.category}
-                    </span>
-                    <h3 className="text-base font-bold text-brand-navy mb-2 group-hover:text-brand-primary transition-colors leading-snug">
-                      {article.title}
-                    </h3>
-                    <p className="text-gray-500 text-sm leading-relaxed flex-1">{article.excerpt}</p>
-                    <span className="inline-flex items-center mt-5 text-brand-primary text-sm font-semibold">
-                      Read more
-                      <svg className="w-3.5 h-3.5 ml-1.5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </span>
-                  </div>
-                </Link>
-              </ScrollReveal>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* ━━━━ 8. QUIZ CTA – parallax gradient banner ━━━━━━━━━━━━━━━ */}
       {/*

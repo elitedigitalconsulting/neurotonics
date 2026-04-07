@@ -4,10 +4,9 @@ import ScrollReveal from '@/components/ScrollReveal';
 import productContent from '@/content/product.json';
 
 const keyIngredients = [
-  { name: 'Bacopa Monnieri', emoji: '🌿' },
-  { name: "Lion's Mane",     emoji: '🍄' },
-  { name: 'Ginkgo Biloba',   emoji: '🌱' },
-  { name: 'Rhodiola Rosea',  emoji: '🌸' },
+  { name: 'Turmeric',  emoji: '🌿' },
+  { name: 'Rosemary',  emoji: '🌱' },
+  { name: 'Guarana',   emoji: '🍃' },
 ];
 
 const benefits = [
@@ -111,7 +110,7 @@ export default function ProductShowcase() {
               {/* Ingredients */}
               <div>
                 <p className="text-white/50 text-xs uppercase tracking-wider font-semibold mb-3">Key Ingredients</p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {keyIngredients.map((ing) => (
                     <div key={ing.name} className="glass-card rounded-xl px-3 py-2.5 text-center">
                       <span className="text-xl block mb-1">{ing.emoji}</span>
@@ -133,21 +132,7 @@ export default function ProductShowcase() {
                 ))}
               </ul>
 
-              {/* Urgency / stock bar */}
-              <div className="glass-card rounded-xl px-4 py-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-white/70 text-xs font-semibold">
-                    🔥 Only {UNITS_LEFT} units left — selling fast
-                  </span>
-                  <span className="text-white/40 text-xs">{STOCK_PERCENT}% sold</span>
-                </div>
-                <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                  <div
-                    className="h-full shimmer-bar rounded-full"
-                    style={{ width: `${STOCK_PERCENT}%` }}
-                  />
-                </div>
-              </div>
+
 
               {/* CTAs */}
               <div className="flex flex-col sm:flex-row gap-3 pt-1">
@@ -155,7 +140,7 @@ export default function ProductShowcase() {
                   href="/product"
                   className="btn-glow relative flex-1 px-8 py-4 bg-white text-brand-navy font-bold rounded-xl text-center shadow-xl hover:shadow-2xl hover:scale-[1.03] active:scale-[0.98] transition-all duration-300 text-sm sm:text-base"
                 >
-                  Shop Now — ${productContent.price.toFixed(2)} {productContent.currency}
+                  Buy Now — ${productContent.price.toFixed(2)} {productContent.currency}
                 </Link>
                 <Link
                   href="/product"

@@ -100,7 +100,7 @@ export default function ParallaxHero() {
   return (
     <section
       ref={heroRef}
-      className="relative min-h-screen flex items-center overflow-hidden bg-brand-navy"
+      className="relative min-h-screen flex items-center overflow-hidden bg-brand-navy -mt-24 sm:-mt-28"
       aria-label="Hero"
     >
       {/* ── Layer 1: Parallax background ───────────────────────────── */}
@@ -129,7 +129,7 @@ export default function ParallaxHero() {
       {/* ── Layer 2: Content (text / CTAs) ─────────────────────────── */}
       <div
         ref={contentRef}
-        className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28 parallax-layer"
+        className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-44 sm:pt-56 pb-20 sm:pb-28 parallax-layer"
         style={{ willChange: 'transform' }}
       >
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">

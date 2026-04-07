@@ -1,0 +1,19 @@
+{
+  "name": "neurotonics-server",
+  "version": "1.0.0",
+  "description": "Neurotonics checkout backend — creates Stripe Checkout sessions",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "stripe": "^17.7.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
