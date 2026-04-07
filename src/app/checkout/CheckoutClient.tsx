@@ -5,12 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { useCart } from '@/lib/cart';
-
-interface ShippingResult {
-  zone: string;
-  fee: number;
-  estimatedDays: string;
-}
+import type { ShippingOption } from '@/lib/shipping';
 
 // ---------------------------------------------------------------------------
 // Success view — shown when Stripe redirects back with ?success=true
@@ -23,6 +18,8 @@ function SuccessView() {
   // module-level store (not component state), so it causes no re-render loop.
   useEffect(() => {
     clearCart();
+    // Also clear persisted shipping selection on successful order
+    import('@/lib/shippingState').then(({ clearShipping }) => clearShipping());
   }, [clearCart]);
 
   return (
@@ -106,26 +103,57 @@ function EmptyCartView() {
 // ---------------------------------------------------------------------------
 // Main checkout content
 // ---------------------------------------------------------------------------
-function CheckoutContent({ postcode }: { postcode: string | null }) {
+function CheckoutContent({
+  urlPostcode,
+  urlCountry,
+  urlShippingId,
+}: {
+  urlPostcode: string | null;
+  urlCountry: string | null;
+  urlShippingId: string | null;
+}) {
   const { items, subtotal } = useCart();
-  const [shipping, setShipping] = useState<ShippingResult | null>(null);
+  const [shipping, setShipping] = useState<ShippingOption | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Validate postcode format (4-digit Australian postcode)
-  const validPostcode = postcode && /^\d{4}$/.test(postcode) ? postcode : null;
-
-  // Calculate shipping client-side using the same logic as the cart page
+  // Resolve the shipping option: prefer localStorage (set by cart page), fall
+  // back to URL params for backwards-compat, then recalculate as last resort.
   useEffect(() => {
-    if (!validPostcode) return;
     let cancelled = false;
-    import('@/lib/shipping').then(({ calculateShipping }) => {
-      if (!cancelled) setShipping(calculateShipping(validPostcode));
-    });
-    return () => { cancelled = true; };
-  }, [validPostcode]);
 
-  const total = subtotal + (shipping?.fee || 0);
+    Promise.all([
+      import('@/lib/shippingState'),
+      import('@/lib/shipping'),
+    ]).then(([{ loadShipping }, { getShippingOptions, getDefaultShippingOption }]) => {
+      if (cancelled) return;
+
+      // 1. Try localStorage first (most reliable — set by CartClient)
+      const stored = loadShipping();
+      if (stored?.option) {
+        setShipping(stored.option);
+        return;
+      }
+
+      // 2. Fall back: recalculate from URL params
+      const postcode = urlPostcode ?? '';
+      const country = urlCountry ?? 'AU';
+      const shippingId = urlShippingId ?? '';
+      const isAustralia = country === 'AU';
+      const validPostcode = isAustralia ? (/^\d{4}$/.test(postcode) ? postcode : null) : '';
+
+      if (validPostcode === null && isAustralia) return; // invalid AU postcode
+
+      const effectivePostcode = validPostcode ?? '';
+      const options = getShippingOptions(effectivePostcode, country, subtotal);
+      const match = options.find((o) => o.id === shippingId);
+      setShipping(match ?? getDefaultShippingOption(effectivePostcode, country, subtotal));
+    });
+
+    return () => { cancelled = true; };
+  }, [urlPostcode, urlCountry, urlShippingId, subtotal]);
+
+  const total = subtotal + (shipping?.fee ?? 0);
 
   /**
    * Redirect the user to Stripe's hosted checkout page.
@@ -139,6 +167,11 @@ function CheckoutContent({ postcode }: { postcode: string | null }) {
    * served from stripe.com, which is already verified.
    */
   const handleCheckout = async () => {
+    if (!shipping) {
+      setError('Please select a delivery option in your cart before checking out.');
+      return;
+    }
+
     setIsLoading(true);
     setError('');
 
@@ -229,14 +262,48 @@ function CheckoutContent({ postcode }: { postcode: string | null }) {
             </div>
 
             {/* Delivery info */}
-            {shipping && (
+            {shipping ? (
               <div className="bg-white rounded-2xl border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-2">Delivery</h2>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">{shipping.zone}</span>
-                  <span className="text-brand-primary font-medium">${shipping.fee.toFixed(2)} AUD</span>
+                <h2 className="text-lg font-semibold text-gray-900 mb-3">Delivery</h2>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{shipping.name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{shipping.description}</p>
+                    <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      {shipping.estimatedDays}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">{shipping.carrier} · {shipping.zone}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    {shipping.fee === 0 ? (
+                      <span className="text-sm font-bold text-green-600">FREE</span>
+                    ) : (
+                      <span className="text-sm font-semibold text-brand-primary">${shipping.fee.toFixed(2)} AUD</span>
+                    )}
+                  </div>
                 </div>
-                <p className="text-gray-500 text-xs mt-1">{shipping.estimatedDays}</p>
+                <Link
+                  href="/cart"
+                  className="inline-flex items-center mt-3 text-xs text-gray-400 hover:text-brand-primary transition-colors"
+                >
+                  Change delivery option →
+                </Link>
+              </div>
+            ) : (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
+                <h2 className="text-base font-semibold text-amber-800 mb-1">Delivery not selected</h2>
+                <p className="text-sm text-amber-700 mb-3">
+                  Please go back to your cart and select a delivery option before checking out.
+                </p>
+                <Link
+                  href="/cart"
+                  className="inline-flex items-center px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors"
+                >
+                  ← Back to Cart
+                </Link>
               </div>
             )}
 
@@ -250,7 +317,7 @@ function CheckoutContent({ postcode }: { postcode: string | null }) {
             {/* Checkout button */}
             <button
               onClick={handleCheckout}
-              disabled={isLoading}
+              disabled={isLoading || !shipping}
               className="w-full py-4 bg-brand-primary hover:bg-brand-primary-dark text-white font-semibold rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isLoading ? (
@@ -316,13 +383,17 @@ function CheckoutContent({ postcode }: { postcode: string | null }) {
                 </div>
                 {shipping ? (
                   <div className="flex justify-between text-gray-600">
-                    <span>Shipping</span>
-                    <span>${shipping.fee.toFixed(2)}</span>
+                    <span>Shipping ({shipping.name})</span>
+                    {shipping.fee === 0 ? (
+                      <span className="text-green-600 font-medium">FREE</span>
+                    ) : (
+                      <span>${shipping.fee.toFixed(2)}</span>
+                    )}
                   </div>
                 ) : (
                   <div className="flex justify-between text-gray-500 text-xs">
                     <span>Shipping</span>
-                    <span>Calculated in cart</span>
+                    <span>Select in cart</span>
                   </div>
                 )}
                 <div className="flex justify-between text-gray-900 font-semibold text-base pt-2 border-t border-gray-200">
@@ -355,10 +426,12 @@ export default function CheckoutClient() {
   const isSuccess = searchParams.get('success') === 'true';
   const isCanceled = searchParams.get('canceled') === 'true';
   const postcode = searchParams.get('postcode');
+  const country = searchParams.get('country');
+  const shippingId = searchParams.get('shipping');
 
   if (isSuccess) return <SuccessView />;
   if (isCanceled) return <CancelView />;
   if (items.length === 0) return <EmptyCartView />;
 
-  return <CheckoutContent postcode={postcode} />;
+  return <CheckoutContent urlPostcode={postcode} urlCountry={country} urlShippingId={shippingId} />;
 }

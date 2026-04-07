@@ -173,16 +173,24 @@ app.post('/create-checkout-session', async (req, res) => {
     Number.isFinite(shipping.fee) &&
     shipping.fee > 0
   ) {
-    const zoneName =
-      typeof shipping.zone === 'string' && shipping.zone.length <= 100
-        ? shipping.zone
-        : 'Standard';
+    const shippingLabel =
+      typeof shipping.name === 'string' && shipping.name.length <= 100
+        ? shipping.name
+        : typeof shipping.zone === 'string' && shipping.zone.length <= 100
+          ? shipping.zone
+          : 'Standard';
+
+    const estimatedDays =
+      typeof shipping.estimatedDays === 'string' && shipping.estimatedDays.length <= 200
+        ? shipping.estimatedDays
+        : '';
 
     lineItems.push({
       price_data: {
         currency: 'aud',
         product_data: {
-          name: `Delivery — ${zoneName}`,
+          name: `Delivery — ${shippingLabel}`,
+          ...(estimatedDays && { description: estimatedDays }),
         },
         unit_amount: Math.round(shipping.fee * 100),
       },
@@ -207,6 +215,7 @@ app.post('/create-checkout-session', async (req, res) => {
       metadata: {
         items: JSON.stringify(items.map((i) => `${i.name} x${i.quantity}`)),
         shippingZone: shipping?.zone || 'none',
+        shippingOption: shipping?.name || 'none',
       },
     });
 
