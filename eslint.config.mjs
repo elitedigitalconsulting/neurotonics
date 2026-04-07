@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Standalone Express server — uses CommonJS, not TypeScript
+    "server/**",
   ]),
 ]);
 
