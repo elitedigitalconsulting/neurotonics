@@ -67,13 +67,13 @@ export default function ProductClient() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16">
           {/* Product Images */}
           <div className="space-y-4">
-            <div className="aspect-square rounded-2xl bg-brand-navy border border-gray-200 flex items-center justify-center overflow-hidden p-6">
+            <div className="aspect-square rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-center overflow-hidden p-6">
               <Image
                 src={productContent.images[activeImageIndex]?.src || productContent.images[0].src}
                 alt={productContent.images[activeImageIndex]?.alt || productContent.name}
                 width={500}
                 height={500}
-                className="w-full h-full object-contain mix-blend-multiply"
+                className="w-full h-full object-contain"
                 priority
               />
             </div>
