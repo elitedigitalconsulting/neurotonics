@@ -43,3 +43,154 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #0a195a;
 }
+
+/* ============================================================
+   Parallax & Scroll-Reveal Utilities
+   ============================================================ */
+
+/* --- Scroll-reveal: initial hidden state --- */
+.sr-hidden {
+  opacity: 0;
+  transition: opacity 0.75s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Direction variants */
+.sr-fade-up    { transform: translateY(44px); }
+.sr-fade-in    { transform: none; }
+.sr-fade-left  { transform: translateX(-44px); }
+.sr-fade-right { transform: translateX(44px); }
+.sr-scale-up   { transform: scale(0.92); }
+
+/* Revealed state */
+.sr-visible {
+  opacity: 1 !important;
+  transform: translate(0, 0) scale(1) !important;
+}
+
+/* --- Hero entry animations --- */
+@keyframes hero-fade-up {
+  from { opacity: 0; transform: translateY(52px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-hero-fade-up {
+  animation: hero-fade-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Badge pill entry */
+@keyframes hero-badge-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-hero-badge-in {
+  animation: hero-badge-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* --- Floating orbs in hero --- */
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0) scale(1); }
+  33%       { transform: translateY(-26px) scale(1.04); }
+  66%       { transform: translateY(-10px) scale(0.97); }
+}
+
+@keyframes float-medium {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-20px); }
+}
+
+@keyframes float-fast {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%       { transform: translateY(-13px) rotate(6deg); }
+}
+
+.animate-float-slow   { animation: float-slow   9s ease-in-out infinite; }
+.animate-float-medium { animation: float-medium  7s ease-in-out infinite; animation-delay: -3s; }
+.animate-float-fast   { animation: float-fast    5s ease-in-out infinite; animation-delay: -1.5s; }
+
+/* --- Scroll indicator bounce --- */
+@keyframes scroll-bounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.45; }
+  50%       { transform: translateX(-50%) translateY(9px); opacity: 0.85; }
+}
+
+.animate-scroll-bounce {
+  animation: scroll-bounce 2.4s ease-in-out infinite;
+}
+
+/* --- Shimmer (gradient text) --- */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #ffffff 0%, #a8c5ff 50%, #ffffff 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 5s linear infinite;
+}
+
+/* --- Premium card lift on hover --- */
+.card-hover {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 24px 48px rgba(10, 25, 90, 0.11);
+}
+
+/* --- Diagonal section divider --- */
+.section-slash::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 72px;
+  background: inherit;
+  clip-path: polygon(0 0, 100% 60%, 100% 100%, 0 100%);
+  pointer-events: none;
+}
+
+/* --- Will-change hints for parallax layers (applied selectively inline) --- */
+.parallax-layer {
+  /* will-change is intentionally not set here globally; apply inline only on
+     the specific elements that actively animate to avoid excess memory usage. */
+}
+
+/* ============================================================
+   Reduced-motion overrides
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .sr-hidden {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .animate-float-slow,
+  .animate-float-medium,
+  .animate-float-fast,
+  .animate-hero-fade-up,
+  .animate-hero-badge-in,
+  .animate-scroll-bounce,
+  .gradient-text {
+    animation: none;
+  }
+
+  .gradient-text {
+    -webkit-text-fill-color: white;
+  }
+
+  .card-hover:hover {
+    transform: none;
+    box-shadow: none;
+  }
+}
