@@ -71,7 +71,7 @@ export default function Home() {
                   alt={productContent.images[0].alt}
                   width={400}
                   height={520}
-                  className="relative z-10 w-full h-full object-contain drop-shadow-2xl mix-blend-multiply"
+                  className="relative z-10 w-full h-full object-contain drop-shadow-2xl"
                 />
               </div>
             </div>
