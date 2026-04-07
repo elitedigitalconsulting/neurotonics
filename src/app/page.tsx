@@ -64,14 +64,14 @@ export default function Home() {
             </div>
 
             <div className="hidden lg:flex justify-center">
-              <div className="relative w-80 h-80">
+              <div className="relative w-[400px] h-[520px]">
                 <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/20 to-brand-warm/20 rounded-full blur-3xl" />
                 <Image
                   src={productContent.images[0].src}
                   alt={productContent.images[0].alt}
-                  width={320}
-                  height={320}
-                  className="relative z-10 w-full h-full object-contain drop-shadow-2xl"
+                  width={400}
+                  height={520}
+                  className="relative z-10 w-full h-full object-contain drop-shadow-2xl mix-blend-multiply"
                 />
               </div>
             </div>
