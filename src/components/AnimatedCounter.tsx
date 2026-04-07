@@ -29,11 +29,15 @@ export default function AnimatedCounter({
     const el = spanRef.current;
     if (!el) return;
 
-    // Respect reduced-motion preference — schedule to avoid sync setState in effect
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // Reduced-motion: schedule to avoid sync setState in effect, then bail
+    if (reducedMotion) {
       const id = setTimeout(() => setValue(target), 0);
       return () => clearTimeout(id);
     }
+
+    let rafId: number | undefined;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -48,17 +52,23 @@ export default function AnimatedCounter({
             const progress = Math.min(elapsed / duration, 1);
             const eased = easeOutCubic(progress);
             setValue(parseFloat((eased * target).toFixed(decimals)));
-            if (progress < 1) requestAnimationFrame(tick);
+            if (progress < 1) {
+              rafId = requestAnimationFrame(tick);
+            }
           };
 
-          requestAnimationFrame(tick);
+          rafId = requestAnimationFrame(tick);
         }
       },
       { threshold: 0.5 },
     );
 
     observer.observe(el);
-    return () => observer.disconnect();
+
+    return () => {
+      observer.disconnect();
+      if (rafId !== undefined) cancelAnimationFrame(rafId);
+    };
   }, [target, duration, decimals]);
 
   const formatted = value.toFixed(decimals);

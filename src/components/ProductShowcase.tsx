@@ -18,7 +18,7 @@ const benefits = [
 ];
 
 const STOCK_PERCENT = 70; // visual "sold" percentage
-const UNITS_LEFT    = 47;
+const UNITS_LEFT = 47;
 
 export default function ProductShowcase() {
   return (
