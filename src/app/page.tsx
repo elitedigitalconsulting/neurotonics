@@ -3,7 +3,7 @@ import siteContent from '@/content/site.json';
 import productContent from '@/content/product.json';
 
 // Client components for interactive/parallax effects
-import ParallaxHero    from '@/components/ParallaxHero';
+import BrainHero       from '@/components/BrainHero';
 import ScrollReveal    from '@/components/ScrollReveal';
 import ParallaxSection from '@/components/ParallaxSection';
 import ProductShowcase from '@/components/ProductShowcase';
@@ -131,8 +131,8 @@ export default function Home() {
       <HomeJsonLd />
       <main id="main-content">
 
-      {/* ━━━━ 1. HERO – layered parallax ━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <ParallaxHero />
+      {/* ━━━━ 1. HERO – 3D Brain Hero ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <BrainHero />
 
       {/* ━━━━ 2. TRUST BAR ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <section className="bg-white border-b border-brand-border">
