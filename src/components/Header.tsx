@@ -5,10 +5,12 @@ import { useState, useEffect } from 'react';
 import { useCart } from '@/lib/cart';
 import siteContent from '@/content/site.json';
 import AnnouncementBar from '@/components/AnnouncementBar';
+import StockistModal from '@/components/StockistModal';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [isStockistOpen, setIsStockistOpen] = useState(false);
   const { totalItems } = useCart();
 
   useEffect(() => {
@@ -58,6 +60,12 @@ export default function Header() {
                     {item.label}
                   </Link>
                 ))}
+                <button
+                  onClick={() => setIsStockistOpen(true)}
+                  className="transition-colors text-sm font-medium uppercase tracking-wider text-gray-700 hover:text-brand-primary"
+                >
+                  Become a Stockist
+                </button>
               </nav>
 
               {/* Icons */}
@@ -109,11 +117,20 @@ export default function Header() {
                     {item.label}
                   </Link>
                 ))}
+                <button
+                  onClick={() => { setIsMenuOpen(false); setIsStockistOpen(true); }}
+                  className="block w-full text-left py-3 transition-colors text-sm font-medium uppercase tracking-wider text-gray-700 hover:text-brand-primary"
+                >
+                  Become a Stockist
+                </button>
               </nav>
             )}
           </div>
         </div>
       </header>
+
+      {/* Stockist Modal */}
+      <StockistModal isOpen={isStockistOpen} onClose={() => setIsStockistOpen(false)} />
     </>
   );
 }

@@ -319,7 +319,7 @@ export default function Home() {
       </ParallaxSection>
 
       {/* ━━━━ 9. BECOME A STOCKIST ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <section className="py-20 sm:py-28 bg-brand-navy">
+      <section id="stockist" className="py-20 sm:py-28 bg-brand-navy">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <ScrollReveal animation="fade-up">
             <div className="text-center mb-10">
