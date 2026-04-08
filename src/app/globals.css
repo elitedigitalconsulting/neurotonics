@@ -279,6 +279,18 @@ body {
   border-image: linear-gradient(90deg, transparent, #1e3a8a, #0a195a, #1e3a8a, transparent) 1;
 }
 
+/* --- Announcement bar marquee --- */
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 28s linear infinite;
+}
+
 /* --- Reduced-motion overrides for new animations --- */
 @media (prefers-reduced-motion: reduce) {
   .animate-pulse-ring::before {
@@ -296,5 +308,10 @@ body {
 
   .btn-glow::after {
     transition: none;
+  }
+
+  .animate-marquee {
+    animation: none;
+    width: auto;
   }
 }
