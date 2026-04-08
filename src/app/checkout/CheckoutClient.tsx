@@ -907,9 +907,9 @@ function CheckoutContent({
               <div className="flex flex-col items-center gap-2">
                 <div className="flex flex-wrap justify-center gap-2">
                   {[
-                    { icon: '\u{1F4B3}', label: 'Credit / Debit Card' },
-                    { icon: '\uFE0F', label: 'Apple Pay' },
-                    { icon: '', label: 'Google Pay' },
+                    { icon: '💳', label: 'Credit / Debit Card' },
+                    { icon: '🍎', label: 'Apple Pay' },
+                    { icon: '🔵', label: 'Google Pay' },
                   ].map(({ icon, label }) => (
                     <span
                       key={label}
