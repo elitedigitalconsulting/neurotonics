@@ -9,6 +9,82 @@ import ParallaxSection from '@/components/ParallaxSection';
 import ProductShowcase from '@/components/ProductShowcase';
 import StockistForm    from '@/components/StockistForm';
 
+const BASE_URL = 'https://elitedigitalconsulting.github.io/neurotonics';
+
+/* ── Home page JSON-LD (Organization + WebSite) ─────────────────────── */
+function HomeJsonLd() {
+  const orgJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: siteContent.brand.name,
+    url: BASE_URL + '/',
+    logo: BASE_URL + '/images/product-main.png',
+    contactPoint: {
+      '@type': 'ContactPoint',
+      telephone: siteContent.footer.contactPhone,
+      contactType: 'customer service',
+      areaServed: 'AU',
+      availableLanguage: 'English',
+    },
+    sameAs: [
+      siteContent.footer.socialLinks.instagram,
+      siteContent.footer.socialLinks.facebook,
+      siteContent.footer.socialLinks.twitter,
+    ],
+    address: {
+      '@type': 'PostalAddress',
+      addressCountry: 'AU',
+    },
+  };
+
+  const websiteJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: siteContent.brand.name,
+    url: BASE_URL + '/',
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: `${BASE_URL}/product`,
+      },
+      'query-input': 'required name=search_term_string',
+    },
+  };
+
+  const productJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: 'Neurotonics Products',
+    url: BASE_URL + '/product',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: productContent.name,
+        url: BASE_URL + '/product',
+      },
+    ],
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+      />
+    </>
+  );
+}
+
 /* ── Shared icon set ────────────────────────────────────────────── */
 function CategoryIcon({ icon }: { icon: string }) {
   const icons: Record<string, React.ReactNode> = {
@@ -51,7 +127,9 @@ export default function Home() {
   const { categories, features, stockist, testimonials } = siteContent;
 
   return (
-    <main>
+    <>
+      <HomeJsonLd />
+      <main id="main-content">
 
       {/* ━━━━ 1. HERO – layered parallax ━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <ParallaxHero />
@@ -261,5 +339,6 @@ export default function Home() {
       </section>
 
     </main>
+    </>
   );
 }

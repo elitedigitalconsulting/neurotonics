@@ -5,7 +5,7 @@ export default function Footer() {
   const { footer, brand } = siteContent;
 
   return (
-    <footer className="bg-brand-navy text-white">
+    <footer className="bg-brand-navy text-white" aria-label="Site footer">
       {/* Main Footer */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10">
@@ -38,7 +38,7 @@ export default function Footer() {
           {/* Shop Links */}
           <div>
             <h3 className="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Shop</h3>
-            <ul className="space-y-3">
+            <ul className="space-y-3" role="list">
               {footer.links.shop.map((item) => (
                 <li key={item.href + item.label}>
                   <Link href={item.href} className="text-gray-400 hover:text-brand-warm transition-colors text-sm">
@@ -52,7 +52,7 @@ export default function Footer() {
           {/* Support Links */}
           <div>
             <h3 className="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Support</h3>
-            <ul className="space-y-3">
+            <ul className="space-y-3" role="list">
               {footer.links.support.map((item) => (
                 <li key={item.href + item.label}>
                   <Link href={item.href} className="text-gray-400 hover:text-brand-warm transition-colors text-sm">
@@ -62,7 +62,7 @@ export default function Footer() {
               ))}
               <li className="pt-2">
                 <a href={`mailto:${footer.contactEmail}`} className="text-gray-400 hover:text-brand-warm transition-colors text-sm flex items-center space-x-2">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                   <span>{footer.contactEmail}</span>

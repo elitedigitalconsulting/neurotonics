@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Disallow transactional / private pages
+Disallow: /neurotonics/cart
+Disallow: /neurotonics/checkout
+
+Sitemap: https://elitedigitalconsulting.github.io/neurotonics/sitemap.xml

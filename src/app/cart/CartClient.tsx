@@ -101,7 +101,7 @@ export default function CartClient() {
 
   if (items.length === 0) {
     return (
-      <main className="bg-white min-h-screen flex items-center justify-center">
+      <main id="main-content" className="bg-white min-h-screen flex items-center justify-center">
         <div className="text-center px-4">
           <div className="w-20 h-20 mx-auto rounded-full bg-gray-100 flex items-center justify-center mb-6">
             <svg className="w-10 h-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -122,7 +122,7 @@ export default function CartClient() {
   }
 
   return (
-    <main className="bg-white min-h-screen">
+    <main id="main-content" className="bg-white min-h-screen">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-16">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Shopping Cart</h1>
 

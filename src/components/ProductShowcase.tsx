@@ -44,6 +44,7 @@ export default function ProductShowcase() {
                   alt={productContent.images[0].alt}
                   width={380}
                   height={500}
+                  loading="lazy"
                   className="relative z-10 w-full h-auto object-contain drop-shadow-2xl"
                 />
               </div>

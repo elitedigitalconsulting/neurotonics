@@ -43,10 +43,10 @@ export default function QuizClient() {
 
   if (showResult) {
     return (
-      <main className="bg-white min-h-screen flex items-center justify-center">
+      <main id="main-content" className="bg-white min-h-screen flex items-center justify-center">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
           <div className="text-center mb-12">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-brand-primary mb-6">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-brand-primary mb-6" aria-hidden="true">
               <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
@@ -60,7 +60,7 @@ export default function QuizClient() {
             <ul className="space-y-4">
               {result.tips.map((tip, index) => (
                 <li key={index} className="flex items-start space-x-3">
-                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-brand-primary-light text-brand-primary text-xs font-bold flex-shrink-0 mt-0.5">
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-brand-primary-light text-brand-primary text-xs font-bold flex-shrink-0 mt-0.5" aria-hidden="true">
                     {index + 1}
                   </span>
                   <span className="text-gray-600 text-sm leading-relaxed">{tip}</span>
@@ -95,7 +95,7 @@ export default function QuizClient() {
   const question = questions[currentQuestion];
 
   return (
-    <main className="bg-white min-h-screen flex items-center justify-center">
+    <main id="main-content" className="bg-white min-h-screen flex items-center justify-center">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 w-full">
         {/* Header */}
         <div className="text-center mb-8">
@@ -105,7 +105,7 @@ export default function QuizClient() {
 
         {/* Progress */}
         <div className="mb-8">
-          <div className="flex justify-between text-sm text-gray-500 mb-2">
+          <div className="flex justify-between text-sm text-gray-500 mb-2" aria-hidden="true">
             <span>Question {currentQuestion + 1} of {totalQuestions}</span>
             <span>{Math.round(progress)}%</span>
           </div>
@@ -114,6 +114,7 @@ export default function QuizClient() {
               className="h-full bg-brand-primary rounded-full transition-all duration-500 ease-out"
               style={{ width: `${progress}%` }}
               role="progressbar"
+              aria-label={`Quiz progress: question ${currentQuestion + 1} of ${totalQuestions}`}
               aria-valuenow={Math.round(progress)}
               aria-valuemin={0}
               aria-valuemax={100}
@@ -124,13 +125,14 @@ export default function QuizClient() {
         {/* Question */}
         <div className="mb-8">
           <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-6">{question.question}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="group" aria-labelledby="quiz-question">
             {question.options.map((option) => {
               const isSelected = answers[question.id] === option.value;
               return (
                 <button
                   key={option.value}
                   onClick={() => handleAnswer(question.id, option.value)}
+                  aria-pressed={isSelected}
                   className={`p-4 sm:p-5 rounded-xl border text-left transition-all duration-200 ${
                     isSelected
                       ? 'bg-brand-primary-light border-brand-primary text-gray-900'
@@ -150,6 +152,7 @@ export default function QuizClient() {
             onClick={handleBack}
             disabled={currentQuestion === 0}
             className="px-6 py-2.5 text-gray-500 hover:text-gray-900 transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium"
+            aria-label="Go to previous question"
           >
             ← Back
           </button>

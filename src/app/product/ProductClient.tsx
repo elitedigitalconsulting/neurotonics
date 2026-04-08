@@ -54,7 +54,7 @@ export default function ProductClient() {
   };
 
   return (
-    <main className="bg-white min-h-screen">
+    <main id="main-content" className="bg-white min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-16">
         {/* Breadcrumb */}
         <nav className="mb-8 text-sm" aria-label="Breadcrumb">
@@ -187,14 +187,19 @@ export default function ProductClient() {
 
             {/* Shipping Calculator */}
             <div className="pt-4 border-t border-gray-200">
-              <h3 className="text-sm font-medium text-gray-600 mb-3">Calculate Delivery Fee</h3>
+              <h3 className="text-sm font-medium text-gray-600 mb-3" id="shipping-calc-label">Calculate Delivery Fee</h3>
               <div className="flex space-x-2">
+                <label htmlFor="shipping-postcode" className="sr-only">Enter your postcode</label>
                 <input
+                  id="shipping-postcode"
                   type="text"
                   value={postcode}
                   onChange={(e) => setPostcode(e.target.value.replace(/\D/g, '').slice(0, 4))}
                   placeholder="Enter postcode (e.g. 2000)"
                   maxLength={4}
+                  inputMode="numeric"
+                  aria-labelledby="shipping-calc-label"
+                  aria-describedby={shippingError ? 'shipping-error' : undefined}
                   className="flex-1 px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:border-brand-primary transition-colors"
                 />
                 <button
@@ -206,10 +211,10 @@ export default function ProductClient() {
                 </button>
               </div>
               {shippingError && (
-                <p className="mt-2 text-red-600 text-sm">{shippingError}</p>
+                <p id="shipping-error" className="mt-2 text-red-600 text-sm" role="alert">{shippingError}</p>
               )}
               {shipping && (
-                <div className="mt-3 p-3 bg-brand-primary-light border border-brand-primary/20 rounded-lg">
+                <div className="mt-3 p-3 bg-brand-primary-light border border-brand-primary/20 rounded-lg" role="status" aria-live="polite">
                   <div className="flex justify-between items-center">
                     <div>
                       <p className="text-gray-900 text-sm font-medium">{shipping.zone}</p>
@@ -235,10 +240,14 @@ export default function ProductClient() {
 
         {/* Product Details Tabs */}
         <div className="mt-16 sm:mt-24">
-          <div className="flex space-x-1 border-b border-gray-200">
+          <div className="flex space-x-1 border-b border-gray-200" role="tablist" aria-label="Product details">
             {(['description', 'ingredients', 'faq'] as const).map((tab) => (
               <button
                 key={tab}
+                role="tab"
+                id={`tab-${tab}`}
+                aria-selected={activeTab === tab}
+                aria-controls={`tabpanel-${tab}`}
                 onClick={() => setActiveTab(tab)}
                 className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
                   activeTab === tab
@@ -252,56 +261,85 @@ export default function ProductClient() {
           </div>
 
           <div className="py-8">
-            {activeTab === 'description' && (
-              <div className="max-w-3xl">
-                {productContent.longDescription.split('\n\n').map((paragraph, index) => (
-                  <p key={index} className="text-gray-600 leading-relaxed mb-4">{paragraph}</p>
-                ))}
-              </div>
-            )}
+            <div
+              role="tabpanel"
+              id="tabpanel-description"
+              aria-labelledby="tab-description"
+              hidden={activeTab !== 'description'}
+            >
+              {activeTab === 'description' && (
+                <div className="max-w-3xl">
+                  {productContent.longDescription.split('\n\n').map((paragraph, index) => (
+                    <p key={index} className="text-gray-600 leading-relaxed mb-4">{paragraph}</p>
+                  ))}
+                </div>
+              )}
+            </div>
 
-            {activeTab === 'ingredients' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {productContent.ingredients.map((ingredient, index) => (
-                  <div key={index} className="p-4 rounded-xl bg-white border border-gray-200">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="text-gray-900 font-medium">{ingredient.name}</h4>
-                      <span className="text-brand-primary text-sm font-semibold">{ingredient.amount}</span>
-                    </div>
-                    <p className="text-gray-500 text-sm">{ingredient.benefit}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {activeTab === 'faq' && (
-              <div className="max-w-3xl space-y-3">
-                {productContent.faq.map((item, index) => (
-                  <div key={index} className="rounded-xl bg-white border border-gray-200 overflow-hidden">
-                    <button
-                      onClick={() => setExpandedFaq(expandedFaq === index ? null : index)}
-                      className="w-full flex justify-between items-center p-4 text-left"
-                      aria-expanded={expandedFaq === index}
-                    >
-                      <span className="text-gray-900 font-medium pr-4">{item.question}</span>
-                      <svg
-                        className={`w-5 h-5 text-brand-primary transition-transform flex-shrink-0 ${expandedFaq === index ? 'rotate-180' : ''}`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    {expandedFaq === index && (
-                      <div className="px-4 pb-4">
-                        <p className="text-gray-500 text-sm leading-relaxed">{item.answer}</p>
+            <div
+              role="tabpanel"
+              id="tabpanel-ingredients"
+              aria-labelledby="tab-ingredients"
+              hidden={activeTab !== 'ingredients'}
+            >
+              {activeTab === 'ingredients' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {productContent.ingredients.map((ingredient, index) => (
+                    <div key={index} className="p-4 rounded-xl bg-white border border-gray-200">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="text-gray-900 font-medium">{ingredient.name}</h4>
+                        <span className="text-brand-primary text-sm font-semibold">{ingredient.amount}</span>
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+                      <p className="text-gray-500 text-sm">{ingredient.benefit}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div
+              role="tabpanel"
+              id="tabpanel-faq"
+              aria-labelledby="tab-faq"
+              hidden={activeTab !== 'faq'}
+            >
+              {activeTab === 'faq' && (
+                <div className="max-w-3xl space-y-3">
+                  {productContent.faq.map((item, index) => (
+                    <div key={index} className="rounded-xl bg-white border border-gray-200 overflow-hidden">
+                      <button
+                        onClick={() => setExpandedFaq(expandedFaq === index ? null : index)}
+                        className="w-full flex justify-between items-center p-4 text-left"
+                        aria-expanded={expandedFaq === index}
+                        aria-controls={`faq-answer-${index}`}
+                        id={`faq-question-${index}`}
+                      >
+                        <span className="text-gray-900 font-medium pr-4">{item.question}</span>
+                        <svg
+                          className={`w-5 h-5 text-brand-primary transition-transform flex-shrink-0 ${expandedFaq === index ? 'rotate-180' : ''}`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          aria-hidden="true"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {expandedFaq === index && (
+                        <div
+                          id={`faq-answer-${index}`}
+                          role="region"
+                          aria-labelledby={`faq-question-${index}`}
+                          className="px-4 pb-4"
+                        >
+                          <p className="text-gray-500 text-sm leading-relaxed">{item.answer}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
