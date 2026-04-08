@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useCart } from '@/lib/cart';
 import siteContent from '@/content/site.json';
+import AnnouncementBar from '@/components/AnnouncementBar';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -26,13 +27,7 @@ export default function Header() {
 
       <header className="fixed top-0 left-0 right-0 z-50">
         {/* Announcement Bar */}
-        <div className="bg-brand-navy text-white text-center py-2 px-4 text-xs sm:text-sm tracking-wide">
-          <span>{siteContent.announcement.text}</span>
-          {' '}
-          <Link href={siteContent.announcement.link} className="underline font-semibold hover:text-brand-warm transition-colors">
-            {siteContent.announcement.linkText}
-          </Link>
-        </div>
+        <AnnouncementBar />
 
         {/* Main Header */}
         <div
