@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { useCart } from '@/lib/cart';
+import { withBasePath } from '@/lib/basePath';
 import {
   getShippingOptions,
   getDefaultShippingOption,
@@ -940,7 +941,7 @@ function CheckoutContent({
                         <div className="relative w-12 h-12 rounded-lg bg-gray-50 flex items-center justify-center overflow-hidden p-0.5 flex-shrink-0">
                           {item.image ? (
                             <Image
-                              src={item.image}
+                              src={withBasePath(item.image)}
                               alt={item.name}
                               width={48}
                               height={48}
