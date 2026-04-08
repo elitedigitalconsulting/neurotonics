@@ -1,6 +1,6 @@
 # Neurotonics — Testing & Validation Guide
 
-> **Status**: All automated tests passing (53/53 as of initial setup)
+> **Status**: All automated tests passing (110/110)
 
 ---
 
@@ -10,7 +10,7 @@
 2. [Manual Test Cases](#2-manual-test-cases)
    - A. Add to Cart
    - B. Cart Functionality
-   - C. Checkout
+   - C. Checkout Form
    - D. Payments
    - E. Wallet Payments (Apple Pay / Google Pay)
 3. [Browser Console Test Runner](#3-browser-console-test-runner)
@@ -38,6 +38,7 @@ cp .env.example .env.local  # ensure env file exists
 | `npx jest --watch` | Watch mode (re-runs on file changes) |
 | `npx jest --testPathPattern=cart` | Run only cart tests |
 | `npx jest --testPathPattern=shipping` | Run only shipping tests |
+| `npx jest --testPathPattern=checkout` | Run only checkout form tests |
 | `npx jest --testPathPattern=api` | Run only API endpoint tests |
 
 ### Test files
@@ -46,6 +47,7 @@ cp .env.example .env.local  # ensure env file exists
 |------|----------|
 | `src/__tests__/cart.test.ts` | Cart state logic, price calculations, localStorage persistence, edge cases |
 | `src/__tests__/shipping.test.ts` | `calculateShipping()` — all zones, specificity, edge cases |
+| `src/__tests__/checkout.test.ts` | `validateCheckoutForm()`, `calculateShipping()`, `updateTotal()` — all validation rules, edge cases |
 | `src/__tests__/api-create-payment-intent.test.ts` | `/api/create-payment-intent` — valid/invalid inputs, Stripe mocking, error handling |
 
 ---
@@ -157,19 +159,19 @@ cp .env.example .env.local  # ensure env file exists
 
 ---
 
-### C. Checkout
+### C. Checkout Form
 
-#### TC-C1: Proceed to checkout redirect
+#### TC-C1: Proceed to checkout
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
 | 1 | Add item to cart |  |
 | 2 | Navigate to `/neurotonics/cart` |  |
 | 3 | Click **"Proceed to Checkout"** | Redirected to `/neurotonics/checkout` |
-| 4 | Observe URL | Includes `?postcode=XXXX` if postcode was entered |
-| 5 | Payment form loads | Stripe Elements UI shown after "Load Payment" click |
+| 4 | Checkout page loads | Three sections visible: Contact Information, Shipping Address, Delivery Options |
+| 5 | Order summary visible | Right column (desktop) or top (mobile) shows product, subtotal, total |
 
-✅ **Expected**: Redirect occurs and Stripe payment form initializes.
+✅ **Expected**: Checkout page loads with all form sections.
 
 ---
 
@@ -185,16 +187,121 @@ cp .env.example .env.local  # ensure env file exists
 
 ---
 
-#### TC-C3: Order summary shows correct items and prices
+#### TC-C3: Form validation — submit with empty form
 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
-| 1 | Add 2× Brain Boost 1000 to cart |  |
-| 2 | Enter postcode **3000** in cart |  |
-| 3 | Click "Proceed to Checkout" |  |
-| 4 | On checkout page, observe right-hand Order Summary | Shows 2× Brain Boost 1000, $159.80, shipping $8.95, total $168.75 |
+| 1 | Add item to cart and navigate to checkout |  |
+| 2 | Leave all fields empty |  |
+| 3 | Click **"Pay $XX.XX AUD"** button | Form does NOT submit |
+| 4 | Observe | Inline error messages appear on all required fields |
+| 5 | Error examples | "Email address is required", "Phone number is required", "Full name is required", "Please select a delivery option" |
 
-✅ **Expected**: Items and prices are passed correctly to checkout.
+✅ **Expected**: Submission blocked with clear per-field error messages.
+
+---
+
+#### TC-C4: Form validation — invalid email
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Type `notanemail` in the Email field |  |
+| 2 | Click outside the field (blur) | "Please enter a valid email address" shown below the field |
+| 3 | Type `user@domain.com` | Error clears immediately |
+
+✅ **Expected**: Email validated on blur and corrected on re-type.
+
+---
+
+#### TC-C5: Form validation — invalid phone
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Type `123` in the Phone field (too short) |  |
+| 2 | Click outside the field (blur) | "Please enter a valid phone number" shown |
+| 3 | Type `0412 345 678` | Error clears |
+
+✅ **Expected**: Phone validated, accepts 10+ digit numbers.
+
+---
+
+#### TC-C6: Form validation — AU postcode
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Ensure country is Australia |  |
+| 2 | Enter `200` in Postcode (3 digits) and blur | "Please enter a valid 4-digit Australian postcode" shown |
+| 3 | No delivery options shown yet |  |
+| 4 | Enter `2000` (4 digits) | Error clears; delivery options appear automatically |
+
+✅ **Expected**: 4-digit postcode triggers delivery options; 3-digit shows error.
+
+---
+
+#### TC-C7: Delivery options — dynamic calculation
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Fill contact info and enter postcode **2000**, country **Australia** | Standard, Express options appear |
+| 2 | Note Standard fee | Sydney Metro: $8.95 |
+| 3 | Change postcode to **6000** | Options update: Western Australia $14.95 |
+| 4 | Change postcode to **0800** | Northern Territory $15.95 |
+| 5 | Change country to **United States** | Single "International Standard" option appears |
+
+✅ **Expected**: Delivery options update in real-time as address changes.
+
+---
+
+#### TC-C8: Free shipping eligibility on checkout
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Add 1× Brain Boost 1000 ($79.90) to cart |  |
+| 2 | Go to checkout | Amber banner: "You're $20.10 away from Free Shipping!" |
+| 3 | Go back to product, add 2 more (total 3×, subtotal $239.70) |  |
+| 4 | Go to checkout | Green banner: "You qualify for Free Shipping!" |
+| 5 | Enter AU postcode | Free Shipping option appears as first/recommended option |
+
+✅ **Expected**: Free shipping banner and option update based on subtotal.
+
+---
+
+#### TC-C9: Order summary updates with delivery selection
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Enter postcode **2000** on checkout | Standard ($8.95) auto-selected |
+| 2 | Observe Order Summary | Shows Subtotal + $8.95 shipping + Total |
+| 3 | Click Express Shipping | Total in Order Summary updates instantly |
+| 4 | Click Standard Shipping | Total reverts |
+
+✅ **Expected**: Total updates in real-time when delivery option changes.
+
+---
+
+#### TC-C10: Form data persists across page navigation
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Fill in email and full name on checkout |  |
+| 2 | Navigate to cart, then back to checkout | Previously entered email and name are still filled |
+| 3 | Check browser DevTools → Application → Local Storage → `neurotonics-checkout` | JSON with contact and address data |
+
+✅ **Expected**: Form data auto-saved to localStorage and restored on return.
+
+---
+
+#### TC-C11: International address
+
+| Step | Action | Expected Result |
+|------|--------|-----------------|
+| 1 | Change Country to **United States** |  |
+| 2 | Observe State field | Changes from dropdown to free-text input |
+| 3 | Observe Postcode field | Accepts alphanumeric (no 4-digit restriction) |
+| 4 | Delivery options show | Single "International Standard" ($29.95) option |
+| 5 | Fill all fields and attempt checkout | Redirects to Stripe with customer email pre-filled |
+
+✅ **Expected**: International checkout flow works end-to-end.
 
 ---
 
@@ -317,7 +424,7 @@ Then in console: `runCartTests()`
 
 ## 4. Edge Case Tests
 
-These are covered in automated tests (`src/__tests__/cart.test.ts`) but also testable manually:
+These are covered in automated tests (`src/__tests__/cart.test.ts`, `src/__tests__/checkout.test.ts`) but also testable manually:
 
 | Edge Case | How to test | Expected |
 |-----------|-------------|----------|
@@ -325,11 +432,14 @@ These are covered in automated tests (`src/__tests__/cart.test.ts`) but also tes
 | Zero quantity | In cart, click `−` until quantity would go to 0 | Item removed automatically |
 | Negative quantity | Not possible via UI (clamped); tested via automated tests | Item removed |
 | Duplicate items | Add same product twice | Quantity merges, no duplicate entries |
-| Network failure during checkout | Open DevTools → Network → set to "Offline", click Load Payment | Error message: "Failed to initialize payment" |
-| Stripe API failure | Remove `STRIPE_SECRET_KEY` from `.env.local`, restart dev server, attempt checkout | 500 error handled gracefully with user-facing message |
+| Network failure during checkout | Open DevTools → Network → set to "Offline", click "Pay" | "Failed to start checkout" error shown |
+| Stripe API failure | Remove `STRIPE_SECRET_KEY` from server `.env`, restart server, attempt checkout | 500 error handled gracefully with user-facing message |
 | Corrupt localStorage | In DevTools console: `localStorage.setItem('neurotonics-cart', 'BAD{JSON')` then refresh | Cart gracefully resets to empty |
-| Postcode validation | Enter 3-digit or non-numeric postcode | "Go"/"Calculate" button stays disabled |
+| Invalid AU postcode (3 digits) | Enter `200` in postcode field | Error shown; no delivery options appear |
 | Postcode with no zone match | Enter `9999` | Falls back to Standard rate ($14.95) |
+| Missing NEXT_PUBLIC_API_URL | Remove env var, attempt checkout | "Checkout is not configured" error shown |
+| No delivery option selected | Fill form but no shipping option available (e.g. AU + blank postcode) | "Please select a delivery option" error on submit |
+| Corrupt checkout localStorage | `localStorage.setItem('neurotonics-checkout', 'bad')` then navigate to checkout | Form loads empty (graceful fallback) |
 
 ---
 
@@ -343,12 +453,11 @@ The following console output points are built in:
 
 ### Shipping calculation
 
-- Errors are caught in both `ProductClient.tsx` and `CartClient.tsx` with `setShippingError(...)` visible as red text in the UI.
+- Delivery options on the checkout page update automatically when postcode/country changes. No errors are thrown — if the postcode is invalid for AU, no options are shown and a prompt guides the user.
 
 ### Checkout initialization
 
-- On shipping failure: `console.error('Shipping calculation failed during checkout initialization')` in the browser console.
-- On payment intent failure: error state displayed in UI + response JSON visible in DevTools Network tab.
+- On server failure: error state displayed in UI + response JSON visible in DevTools Network tab.
 
 ### Cart store
 
@@ -359,14 +468,22 @@ The following console output points are built in:
 JSON.parse(localStorage.getItem('neurotonics-cart') || '[]')
 ```
 
+### Checkout form data
+
+```javascript
+// In browser console:
+JSON.parse(localStorage.getItem('neurotonics-checkout') || 'null')
+```
+
 ### Debugging checklist for a broken checkout
 
 1. Open DevTools → Network tab
-2. Navigate to checkout and click "Load Payment"
-3. Look for `POST /api/create-payment-intent` request
+2. Navigate to checkout and click "Pay $XX.XX AUD"
+3. Look for `POST /create-checkout-session` request to `NEXT_PUBLIC_API_URL`
 4. Check response body for `error` field
-5. Check the terminal running `npm run dev` for server-side error logs
-6. Verify `.env.local` contains valid `STRIPE_SECRET_KEY` and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+5. Check the terminal running `node server/index.js` for server-side error logs
+6. Verify server `.env` contains a valid `STRIPE_SECRET_KEY`
+7. Verify `NEXT_PUBLIC_API_URL` in `.env.local` points to the running Express server
 
 ---
 
@@ -376,7 +493,7 @@ Use this checklist before each production deployment:
 
 ### Automated tests
 
-- [ ] `npm test` — all 53 tests pass with no failures
+- [ ] `npm test` — all 110 tests pass with no failures
 - [ ] No TypeScript errors (`npm run build` completes without errors)
 - [ ] No lint errors (`npm run lint`)
 
@@ -389,25 +506,34 @@ Use this checklist before each production deployment:
 - [ ] **Quantity update** — `+`/`−` buttons update total instantly ✅
 - [ ] **Remove item** — correct item removed, empty state shown ✅
 
-### Shipping calculator
+### Shipping calculator (cart page)
 
 - [ ] Sydney Metro (2000) → $8.95 ✅
 - [ ] Melbourne Metro (3000) → $8.95 ✅
 - [ ] Unknown postcode (9999) → Standard $14.95 ✅
 - [ ] Invalid (3-digit) postcode — button stays disabled ✅
 
-### Checkout
+### Checkout form
 
-- [ ] **Checkout works** — redirects to `/checkout` with postcode in URL ✅
 - [ ] **Empty cart** — blocked with friendly message ✅
-- [ ] **Order summary** — correct items and prices passed ✅
-- [ ] **Payment form loads** — Stripe Elements initializes successfully ✅
+- [ ] **Contact section** — Email and Phone fields shown with correct validation ✅
+- [ ] **Address section** — All required fields shown; AU uses state dropdown ✅
+- [ ] **AU postcode triggers delivery options** — entering 4 digits shows options ✅
+- [ ] **International country** — shows single International Standard option ✅
+- [ ] **Delivery selection** — highlighted when selected; total updates instantly ✅
+- [ ] **Free shipping banner** — shows when subtotal < $100 (AU only) ✅
+- [ ] **Form validation on submit** — all required fields show errors when empty ✅
+- [ ] **Inline errors on blur** — error shown when leaving a field with invalid input ✅
+- [ ] **Form data persists** — saved to localStorage; restored on back-navigation ✅
+- [ ] **Order summary** — correct items, shipping, and total shown ✅
 
 ### Payments
 
 - [ ] **Payments succeed in test mode** — card `4242 4242 4242 4242` shows "Order Confirmed!" ✅
-- [ ] **Declined payment** — error displayed, cart preserved ✅
+- [ ] **Declined payment** — Stripe shows error, cart preserved ✅
 - [ ] **Cart cleared** after successful payment ✅
+- [ ] **Checkout data cleared** after successful payment ✅
+- [ ] **Customer email pre-filled** on Stripe checkout page ✅
 
 ### Wallet payments
 

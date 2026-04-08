@@ -129,8 +129,29 @@ function sanitiseRedirectUrl(url) {
 // ---------------------------------------------------------------------------
 // POST /create-checkout-session
 // ---------------------------------------------------------------------------
+/**
+ * Sanitise a customer email address.
+ * Returns the trimmed email if it looks valid, otherwise undefined.
+ */
+function sanitiseEmail(email) {
+  if (typeof email !== 'string') return undefined;
+  const trimmed = email.trim().slice(0, 254);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed) ? trimmed : undefined;
+}
+
+/**
+ * Sanitise a plain text string for metadata (strip control chars, truncate).
+ */
+function sanitiseText(value, maxLen = 200) {
+  if (typeof value !== 'string') return '';
+  return value.replace(/[\x00-\x1F\x7F]/g, '').trim().slice(0, maxLen);
+}
+
+// ---------------------------------------------------------------------------
+// POST /create-checkout-session
+// ---------------------------------------------------------------------------
 app.post('/create-checkout-session', async (req, res) => {
-  const { items, shipping, successUrl, cancelUrl } = req.body;
+  const { items, shipping, customerEmail, customerPhone, shippingAddress, successUrl, cancelUrl } = req.body;
 
   // --- Validate cart items ---
   if (!Array.isArray(items) || items.length === 0) {
@@ -201,6 +222,23 @@ app.post('/create-checkout-session', async (req, res) => {
     });
   }
 
+  // --- Sanitise customer details ---
+  const safeEmail = sanitiseEmail(customerEmail);
+  const safePhone = sanitiseText(customerPhone, 30);
+
+  // Build address metadata (fields already validated client-side)
+  const addrMeta = shippingAddress && typeof shippingAddress === 'object'
+    ? {
+        addrName: sanitiseText(shippingAddress.fullName, 100),
+        addrLine1: sanitiseText(shippingAddress.address1, 200),
+        addrLine2: sanitiseText(shippingAddress.address2, 200),
+        addrCity: sanitiseText(shippingAddress.city, 100),
+        addrState: sanitiseText(shippingAddress.state, 100),
+        addrPostcode: sanitiseText(shippingAddress.postcode, 20),
+        addrCountry: sanitiseText(shippingAddress.country, 10),
+      }
+    : {};
+
   // --- Create Stripe Checkout session ---
   try {
     const session = await stripe.checkout.sessions.create({
@@ -208,6 +246,8 @@ app.post('/create-checkout-session', async (req, res) => {
       line_items: lineItems,
       success_url: safeSuccessUrl,
       cancel_url: safeCancelUrl,
+      // Pre-fill customer email so they don't have to retype it on Stripe's page
+      ...(safeEmail && { customer_email: safeEmail }),
       // Stripe Checkout automatically surfaces Apple Pay on Safari/iOS and
       // Google Pay on Chrome/Android.  'automatic_payment_methods' is the
       // recommended way to enable all eligible payment methods.
@@ -219,6 +259,8 @@ app.post('/create-checkout-session', async (req, res) => {
         items: JSON.stringify(items.map((i) => `${i.name} x${i.quantity}`)),
         shippingZone: shipping?.zone || 'none',
         shippingOption: shipping?.name || 'none',
+        ...(safePhone && { customerPhone: safePhone }),
+        ...addrMeta,
       },
     });
 
