@@ -26,7 +26,7 @@ export default function Header() {
 
       <header className="fixed top-0 left-0 right-0 z-50">
         {/* Announcement Bar */}
-        <div className="bg-brand-navy text-white text-center py-2 px-4 text-xs sm:text-sm tracking-wide" role="banner">
+        <div className="bg-brand-navy text-white text-center py-2 px-4 text-xs sm:text-sm tracking-wide">
           <span>{siteContent.announcement.text}</span>
           {' '}
           <Link href={siteContent.announcement.link} className="underline font-semibold hover:text-brand-warm transition-colors">

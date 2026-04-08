@@ -287,7 +287,7 @@ export default function ProductClient() {
                   {productContent.ingredients.map((ingredient, index) => (
                     <div key={index} className="p-4 rounded-xl bg-white border border-gray-200">
                       <div className="flex justify-between items-start mb-2">
-                        <h3 className="text-gray-900 font-medium">{ingredient.name}</h3>
+                        <h4 className="text-gray-900 font-medium">{ingredient.name}</h4>
                         <span className="text-brand-primary text-sm font-semibold">{ingredient.amount}</span>
                       </div>
                       <p className="text-gray-500 text-sm">{ingredient.benefit}</p>
