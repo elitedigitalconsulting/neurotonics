@@ -250,6 +250,18 @@ const EMAIL_FROM = process.env.EMAIL_FROM || process.env.EMAIL_USER || 'noreply@
 // ---------------------------------------------------------------------------
 
 /**
+ * Escape HTML special characters to prevent injection in the email body.
+ */
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
+/**
  * Sanitise a plain-text string: strip control characters, trim, and cap length.
  */
 function sanitiseText(value, maxLen) {
@@ -317,16 +329,27 @@ app.post('/stockist-application', async (req, res) => {
   // --- Send email ---
   const formattedAbn = safe.abn.replace(/\s/g, '').replace(/^(\d{2})(\d{3})(\d{3})(\d{3})$/, '$1 $2 $3 $4');
 
+  // Escape all user-supplied values before embedding in HTML
+  const h = {
+    fullName:        escapeHtml(safe.fullName),
+    businessName:    escapeHtml(safe.businessName),
+    abn:             escapeHtml(formattedAbn),
+    email:           escapeHtml(safe.email),
+    phone:           escapeHtml(safe.phone),
+    businessAddress: escapeHtml(safe.businessAddress),
+    message:         escapeHtml(safe.message).replace(/\n/g, '<br>'),
+  };
+
   const htmlBody = `
     <h2 style="color:#1a2e4a;font-family:sans-serif;">New Stockist Application</h2>
     <table style="font-family:sans-serif;font-size:14px;border-collapse:collapse;width:100%;max-width:560px;">
-      <tr><td style="padding:8px 12px;font-weight:bold;background:#f5f7fa;width:160px;">Full Name</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${safe.fullName}</td></tr>
-      <tr><td style="padding:8px 12px;font-weight:bold;background:#f5f7fa;">Business Name</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${safe.businessName}</td></tr>
-      <tr><td style="padding:8px 12px;font-weight:bold;background:#f5f7fa;">ABN</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${formattedAbn}</td></tr>
-      <tr><td style="padding:8px 12px;font-weight:bold;background:#f5f7fa;">Email</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;"><a href="mailto:${safe.email}">${safe.email}</a></td></tr>
-      <tr><td style="padding:8px 12px;font-weight:bold;background:#f5f7fa;">Phone</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${safe.phone}</td></tr>
-      <tr><td style="padding:8px 12px;font-weight:bold;background:#f5f7fa;">Business Address</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${safe.businessAddress}</td></tr>
-      ${safe.message ? `<tr><td style="padding:8px 12px;font-weight:bold;background:#f5f7fa;">Message</td><td style="padding:8px 12px;">${safe.message.replace(/\n/g, '<br>')}</td></tr>` : ''}
+      <tr><td style="padding:8px 12px;font-weight:bold;background:#f5f7fa;width:160px;">Full Name</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${h.fullName}</td></tr>
+      <tr><td style="padding:8px 12px;font-weight:bold;background:#f5f7fa;">Business Name</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${h.businessName}</td></tr>
+      <tr><td style="padding:8px 12px;font-weight:bold;background:#f5f7fa;">ABN</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${h.abn}</td></tr>
+      <tr><td style="padding:8px 12px;font-weight:bold;background:#f5f7fa;">Email</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;"><a href="mailto:${h.email}">${h.email}</a></td></tr>
+      <tr><td style="padding:8px 12px;font-weight:bold;background:#f5f7fa;">Phone</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${h.phone}</td></tr>
+      <tr><td style="padding:8px 12px;font-weight:bold;background:#f5f7fa;">Business Address</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${h.businessAddress}</td></tr>
+      ${safe.message ? `<tr><td style="padding:8px 12px;font-weight:bold;background:#f5f7fa;">Message</td><td style="padding:8px 12px;">${h.message}</td></tr>` : ''}
     </table>
     <p style="font-family:sans-serif;font-size:12px;color:#718096;margin-top:24px;">Submitted via the Neurotonics website stockist application form.</p>
   `.trim();
