@@ -322,7 +322,7 @@ export default function ShippingReturnsClient() {
           <h3 className="font-semibold text-brand-navy mt-4">How to Request a Return</h3>
           <ol className="space-y-3 list-none">
             {[
-              'Email us at hello@neurotonics.com.au with your order number and reason for return.',
+              <>Email us at <a href="mailto:hello@neurotonics.com.au" className="text-brand-primary hover:underline font-medium">hello@neurotonics.com.au</a> with your order number and reason for return.</>,
               'Our customer care team will respond within 1–2 business days with return instructions.',
               'Pack the item securely and send it to the address provided.',
               'Once we receive and inspect the item, your refund will be processed within 5–7 business days to your original payment method.',
