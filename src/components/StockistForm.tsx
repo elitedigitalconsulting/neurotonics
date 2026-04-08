@@ -33,7 +33,7 @@ const EMPTY: FormFields = {
   message: '',
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 function validateAbn(abn: string): boolean {
   return /^\d{11}$/.test(abn.replace(/\s/g, ''));
@@ -130,6 +130,12 @@ export default function StockistForm() {
 
     setFormState('submitting');
     setServerError('');
+
+    if (!API_URL) {
+      setServerError('Application endpoint is not configured. Please contact us directly.');
+      setFormState('error');
+      return;
+    }
 
     try {
       const res = await fetch(`${API_URL}/stockist-application`, {

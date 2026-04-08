@@ -59,7 +59,7 @@ app.use(
       if (allowedOrigins.includes(origin)) return callback(null, true);
       callback(new Error(`CORS: origin '${origin}' is not allowed`));
     },
-    methods: ['GET', 'POST'],
+    methods: ['POST'],
     allowedHeaders: ['Content-Type'],
   })
 );
