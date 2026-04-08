@@ -272,6 +272,81 @@ app.post('/create-checkout-session', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// POST /create-payment-intent
+// ---------------------------------------------------------------------------
+/**
+ * Creates a Stripe PaymentIntent and returns its client_secret to the frontend.
+ * The frontend uses Stripe Elements (PaymentElement / PaymentRequestButtonElement)
+ * to confirm the payment inline — enabling card, Apple Pay, and Google Pay
+ * without leaving the checkout page.
+ */
+app.post('/create-payment-intent', async (req, res) => {
+  const { amount, shipping, customerEmail, shippingAddress } = req.body;
+
+  // --- Validate amount ---
+  if (
+    typeof amount !== 'number' ||
+    !Number.isFinite(amount) ||
+    amount <= 0 ||
+    amount > 100000
+  ) {
+    return res.status(400).json({ error: 'Invalid order amount.' });
+  }
+
+  // --- Sanitise optional metadata ---
+  const safeEmail = sanitiseEmail(customerEmail);
+  const safeMeta = {};
+
+  if (shipping && typeof shipping === 'object') {
+    if (typeof shipping.zone === 'string') {
+      safeMeta.shippingZone = sanitiseText(shipping.zone, 100);
+    }
+    if (typeof shipping.name === 'string') {
+      safeMeta.shippingOption = sanitiseText(shipping.name, 100);
+    }
+    if (typeof shipping.fee === 'number' && Number.isFinite(shipping.fee)) {
+      safeMeta.shippingFee = String(Math.round(shipping.fee * 100));
+    }
+  }
+
+  if (shippingAddress && typeof shippingAddress === 'object') {
+    if (typeof shippingAddress.fullName === 'string') {
+      safeMeta.addrName = sanitiseText(shippingAddress.fullName, 100);
+    }
+    if (typeof shippingAddress.city === 'string') {
+      safeMeta.addrCity = sanitiseText(shippingAddress.city, 100);
+    }
+    if (typeof shippingAddress.state === 'string') {
+      safeMeta.addrState = sanitiseText(shippingAddress.state, 50);
+    }
+    if (typeof shippingAddress.country === 'string') {
+      safeMeta.addrCountry = sanitiseText(shippingAddress.country, 10);
+    }
+  }
+
+  // --- Create PaymentIntent ---
+  try {
+    const paymentIntent = await stripe.paymentIntents.create({
+      // Stripe amounts are in the smallest currency unit (cents for AUD)
+      amount: Math.round(amount * 100),
+      currency: 'aud',
+      // Let Stripe automatically surface eligible payment methods
+      // (cards, Apple Pay, Google Pay, etc.) based on dashboard config
+      automatic_payment_methods: { enabled: true },
+      ...(safeEmail && { receipt_email: safeEmail }),
+      metadata: safeMeta,
+    });
+
+    return res.json({ clientSecret: paymentIntent.client_secret });
+  } catch (err) {
+    console.error('PaymentIntent creation failed:', err);
+    return res
+      .status(500)
+      .json({ error: 'Failed to create payment. Please try again.' });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Email transporter (nodemailer)
 // ---------------------------------------------------------------------------
 const emailTransporter = nodemailer.createTransport({
