@@ -1,8 +1,9 @@
 /**
- * Neurotonics — Checkout Backend
+ * Neurotonics — Backend Server
  *
- * Express server that creates Stripe Checkout sessions for the
- * Neurotonics static frontend (GitHub Pages).
+ * Express server that handles:
+ *   - Stripe Checkout sessions for the Neurotonics static frontend (GitHub Pages)
+ *   - Stockist application form submissions (sends email via SMTP)
  *
  * Stripe Checkout automatically displays Apple Pay on Safari/iOS and
  * Google Pay on Chrome/Android — no extra configuration required.
@@ -10,8 +11,9 @@
  * Setup:
  *   1. cp .env.example .env
  *   2. Add your STRIPE_SECRET_KEY to .env
- *   3. Set CLIENT_ORIGINS to your frontend URL(s)
- *   4. npm install && npm start
+ *   3. Add your SMTP email credentials to .env (EMAIL_HOST, EMAIL_USER, EMAIL_PASS)
+ *   4. Set CLIENT_ORIGINS to your frontend URL(s)
+ *   5. npm install && npm start
  */
 
 'use strict';
@@ -21,6 +23,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const Stripe = require('stripe');
+const nodemailer = require('nodemailer');
 
 // ---------------------------------------------------------------------------
 // Initialise Stripe (fails fast if the secret key is missing)
@@ -227,8 +230,160 @@ app.post('/create-checkout-session', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Health check
+// Email transporter (nodemailer)
 // ---------------------------------------------------------------------------
+const emailTransporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+  port: parseInt(process.env.EMAIL_PORT || '587', 10),
+  secure: process.env.EMAIL_SECURE === 'true',
+  auth: {
+    user: process.env.EMAIL_USER || '',
+    pass: process.env.EMAIL_PASS || '',
+  },
+});
+
+const STOCKIST_TO_EMAIL = process.env.STOCKIST_EMAIL || 'admin@elitedigitalconsulting.com.au';
+const EMAIL_FROM = process.env.EMAIL_FROM || process.env.EMAIL_USER || 'noreply@neurotonics.com.au';
+
+// ---------------------------------------------------------------------------
+// POST /stockist-application
+// ---------------------------------------------------------------------------
+
+/**
+ * Escape HTML special characters to prevent injection in the email body.
+ */
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
+/**
+ * Sanitise a plain-text string: strip control characters, trim, and cap length.
+ */
+function sanitiseText(value, maxLen) {
+  if (typeof value !== 'string') return '';
+  return value.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim().slice(0, maxLen);
+}
+
+/**
+ * Validate an Australian Business Number (ABN).
+ * An ABN is exactly 11 digits (spaces allowed for readability).
+ */
+function isValidAbn(abn) {
+  const digits = abn.replace(/\s/g, '');
+  return /^\d{11}$/.test(digits);
+}
+
+app.post('/stockist-application', async (req, res) => {
+  const {
+    fullName,
+    businessName,
+    abn,
+    email,
+    phone,
+    businessAddress,
+    message,
+  } = req.body || {};
+
+  // --- Required field presence check ---
+  const missing = [];
+  if (!fullName)        missing.push('fullName');
+  if (!businessName)    missing.push('businessName');
+  if (!abn)             missing.push('abn');
+  if (!email)           missing.push('email');
+  if (!phone)           missing.push('phone');
+  if (!businessAddress) missing.push('businessAddress');
+
+  if (missing.length > 0) {
+    return res.status(400).json({ error: `Missing required fields: ${missing.join(', ')}.` });
+  }
+
+  // --- Sanitise ---
+  const safe = {
+    fullName:        sanitiseText(fullName,        120),
+    businessName:    sanitiseText(businessName,    200),
+    abn:             sanitiseText(abn,              20),
+    email:           sanitiseText(email,            254),
+    phone:           sanitiseText(phone,             30),
+    businessAddress: sanitiseText(businessAddress,  300),
+    message:         sanitiseText(message || '',    1000),
+  };
+
+  // --- Type / format validation ---
+  if (!safe.fullName || !safe.businessName || !safe.abn || !safe.email || !safe.phone || !safe.businessAddress) {
+    return res.status(400).json({ error: 'One or more required fields are empty or too long.' });
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safe.email)) {
+    return res.status(400).json({ error: 'Invalid email address.' });
+  }
+
+  if (!isValidAbn(safe.abn)) {
+    return res.status(400).json({ error: 'ABN must be exactly 11 digits.' });
+  }
+
+  // --- Send email ---
+  const formattedAbn = safe.abn.replace(/\s/g, '').replace(/^(\d{2})(\d{3})(\d{3})(\d{3})$/, '$1 $2 $3 $4');
+
+  // Escape all user-supplied values before embedding in HTML
+  const h = {
+    fullName:        escapeHtml(safe.fullName),
+    businessName:    escapeHtml(safe.businessName),
+    abn:             escapeHtml(formattedAbn),
+    email:           escapeHtml(safe.email),
+    phone:           escapeHtml(safe.phone),
+    businessAddress: escapeHtml(safe.businessAddress),
+    message:         escapeHtml(safe.message).replace(/\n/g, '<br>'),
+  };
+
+  const htmlBody = `
+    <h2 style="color:#1a2e4a;font-family:sans-serif;">New Stockist Application</h2>
+    <table style="font-family:sans-serif;font-size:14px;border-collapse:collapse;width:100%;max-width:560px;">
+      <tr><td style="padding:8px 12px;font-weight:bold;background:#f5f7fa;width:160px;">Full Name</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${h.fullName}</td></tr>
+      <tr><td style="padding:8px 12px;font-weight:bold;background:#f5f7fa;">Business Name</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${h.businessName}</td></tr>
+      <tr><td style="padding:8px 12px;font-weight:bold;background:#f5f7fa;">ABN</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${h.abn}</td></tr>
+      <tr><td style="padding:8px 12px;font-weight:bold;background:#f5f7fa;">Email</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;"><a href="mailto:${h.email}">${h.email}</a></td></tr>
+      <tr><td style="padding:8px 12px;font-weight:bold;background:#f5f7fa;">Phone</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${h.phone}</td></tr>
+      <tr><td style="padding:8px 12px;font-weight:bold;background:#f5f7fa;">Business Address</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${h.businessAddress}</td></tr>
+      ${safe.message ? `<tr><td style="padding:8px 12px;font-weight:bold;background:#f5f7fa;">Message</td><td style="padding:8px 12px;">${h.message}</td></tr>` : ''}
+    </table>
+    <p style="font-family:sans-serif;font-size:12px;color:#718096;margin-top:24px;">Submitted via the Neurotonics website stockist application form.</p>
+  `.trim();
+
+  const textBody = [
+    'New Stockist Application',
+    '',
+    `Full Name:        ${safe.fullName}`,
+    `Business Name:    ${safe.businessName}`,
+    `ABN:              ${formattedAbn}`,
+    `Email:            ${safe.email}`,
+    `Phone:            ${safe.phone}`,
+    `Business Address: ${safe.businessAddress}`,
+    safe.message ? `\nMessage:\n${safe.message}` : '',
+  ].join('\n');
+
+  try {
+    await emailTransporter.sendMail({
+      from: `"Neurotonics Website" <${EMAIL_FROM}>`,
+      to: STOCKIST_TO_EMAIL,
+      replyTo: safe.email,
+      subject: `Stockist Application — ${safe.businessName}`,
+      text: textBody,
+      html: htmlBody,
+    });
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Stockist application email failed:', err);
+    return res.status(500).json({ error: 'Failed to send application. Please try again later.' });
+  }
+});
+
+
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });

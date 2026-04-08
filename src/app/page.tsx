@@ -7,6 +7,7 @@ import ParallaxHero    from '@/components/ParallaxHero';
 import ScrollReveal    from '@/components/ScrollReveal';
 import ParallaxSection from '@/components/ParallaxSection';
 import ProductShowcase from '@/components/ProductShowcase';
+import StockistForm    from '@/components/StockistForm';
 
 /* ── Shared icon set ────────────────────────────────────────────── */
 function CategoryIcon({ icon }: { icon: string }) {
@@ -47,7 +48,7 @@ function Stars({ rating }: { rating: number }) {
 
 /* ── Page ───────────────────────────────────────────────────────── */
 export default function Home() {
-  const { categories, features, newsletter, testimonials } = siteContent;
+  const { categories, features, stockist, testimonials } = siteContent;
 
   return (
     <main>
@@ -239,32 +240,22 @@ export default function Home() {
         </div>
       </ParallaxSection>
 
-      {/* ━━━━ 9. NEWSLETTER ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {/* ━━━━ 9. BECOME A STOCKIST ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <section className="py-20 sm:py-28 bg-brand-navy">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <ScrollReveal animation="fade-up">
-            <p className="text-xs font-semibold tracking-[0.2em] uppercase text-brand-primary-light mb-4">
-              Stay in the Loop
-            </p>
-            <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight mb-3">
-              {newsletter.headline}
-            </h2>
-            <p className="text-white/45 mb-10 leading-relaxed">{newsletter.subheadline}</p>
-
-            <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-              <input
-                type="email"
-                placeholder={newsletter.placeholder}
-                className="flex-1 px-4 py-3.5 rounded-xl bg-white/8 border border-white/15 text-white placeholder-white/35 focus:outline-none focus:border-brand-warm focus:ring-1 focus:ring-brand-warm text-sm transition-colors"
-                aria-label="Email address"
-              />
-              <button
-                type="button"
-                className="px-6 py-3.5 bg-brand-primary hover:bg-brand-primary-dark text-white font-bold rounded-xl transition-all duration-300 text-sm hover:scale-[1.02] active:scale-[0.98] shrink-0"
-              >
-                {newsletter.buttonText}
-              </button>
+            <div className="text-center mb-10">
+              <p className="text-xs font-semibold tracking-[0.2em] uppercase text-brand-primary-light mb-4">
+                {stockist.eyebrow}
+              </p>
+              <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight mb-3">
+                {stockist.headline}
+              </h2>
+              <p className="text-white/45 leading-relaxed max-w-xl mx-auto">
+                {stockist.subheadline}
+              </p>
             </div>
+            <StockistForm />
           </ScrollReveal>
         </div>
       </section>
