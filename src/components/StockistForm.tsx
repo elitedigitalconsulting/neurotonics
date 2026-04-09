@@ -10,7 +10,10 @@ interface FormFields {
   abn: string;
   email: string;
   phone: string;
-  businessAddress: string;
+  businessStreet: string;
+  businessSuburb: string;
+  businessState: string;
+  businessPostcode: string;
   message: string;
 }
 
@@ -20,8 +23,21 @@ interface FieldErrors {
   abn?: string;
   email?: string;
   phone?: string;
-  businessAddress?: string;
+  businessStreet?: string;
+  businessSuburb?: string;
+  businessPostcode?: string;
 }
+
+const AU_STATES = [
+  { code: 'ACT', name: 'Australian Capital Territory' },
+  { code: 'NSW', name: 'New South Wales' },
+  { code: 'NT', name: 'Northern Territory' },
+  { code: 'QLD', name: 'Queensland' },
+  { code: 'SA', name: 'South Australia' },
+  { code: 'TAS', name: 'Tasmania' },
+  { code: 'VIC', name: 'Victoria' },
+  { code: 'WA', name: 'Western Australia' },
+];
 
 const EMPTY: FormFields = {
   fullName: '',
@@ -29,7 +45,10 @@ const EMPTY: FormFields = {
   abn: '',
   email: '',
   phone: '',
-  businessAddress: '',
+  businessStreet: '',
+  businessSuburb: '',
+  businessState: '',
+  businessPostcode: '',
   message: '',
 };
 
@@ -63,8 +82,14 @@ function validateFields(fields: FormFields): FieldErrors {
   if (!fields.phone.trim())
     errors.phone = 'Phone number is required.';
 
-  if (!fields.businessAddress.trim())
-    errors.businessAddress = 'Business address is required.';
+  if (!fields.businessStreet.trim())
+    errors.businessStreet = 'Street address is required.';
+
+  if (!fields.businessSuburb.trim())
+    errors.businessSuburb = 'Suburb is required.';
+
+  if (!fields.businessPostcode.trim())
+    errors.businessPostcode = 'Postcode is required.';
 
   return errors;
 }
@@ -110,7 +135,7 @@ export default function StockistForm() {
   const [formState, setFormState] = useState<FormState>('idle');
   const [serverError, setServerError] = useState('');
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     const { name, value } = e.target;
     setFields((prev) => ({ ...prev, [name]: value }));
     // Clear individual field error on change
@@ -138,10 +163,25 @@ export default function StockistForm() {
     }
 
     try {
+      const businessAddress = [
+        fields.businessStreet,
+        fields.businessSuburb,
+        fields.businessState,
+        fields.businessPostcode,
+      ].filter(Boolean).join(', ');
+
       const res = await fetch(`${API_URL}/stockist-application`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(fields),
+        body: JSON.stringify({
+          fullName: fields.fullName,
+          businessName: fields.businessName,
+          abn: fields.abn,
+          email: fields.email,
+          phone: fields.phone,
+          businessAddress,
+          message: fields.message,
+        }),
       });
 
       if (res.ok) {
@@ -244,17 +284,82 @@ export default function StockistForm() {
       </Field>
 
       {/* Row 4: Business Address */}
-      <Field label="Business Address" required error={errors.businessAddress}>
-        <input
-          type="text"
-          name="businessAddress"
-          value={fields.businessAddress}
-          onChange={handleChange}
-          placeholder="123 Main Street, Melbourne VIC 3000"
-          autoComplete="street-address"
-          className={errors.businessAddress ? inputErrorClass : inputClass}
-        />
-      </Field>
+      <div>
+        <label className="block text-sm font-medium text-white/80 mb-1.5">
+          Business Address <span className="text-brand-warm ml-1" aria-hidden="true">*</span>
+        </label>
+        <div className="space-y-3">
+          {/* Street address */}
+          <div>
+            <input
+              type="text"
+              name="businessStreet"
+              value={fields.businessStreet}
+              onChange={handleChange}
+              placeholder="Street address"
+              autoComplete="address-line1"
+              className={errors.businessStreet ? inputErrorClass : inputClass}
+            />
+            {errors.businessStreet && (
+              <p className="mt-1.5 text-xs text-red-400" role="alert">{errors.businessStreet}</p>
+            )}
+          </div>
+
+          {/* Suburb / State / Postcode row */}
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <input
+                type="text"
+                name="businessSuburb"
+                value={fields.businessSuburb}
+                onChange={handleChange}
+                placeholder="Suburb"
+                autoComplete="address-level2"
+                className={errors.businessSuburb ? inputErrorClass : inputClass}
+              />
+              {errors.businessSuburb && (
+                <p className="mt-1.5 text-xs text-red-400" role="alert">{errors.businessSuburb}</p>
+              )}
+            </div>
+            <div className="relative">
+              <select
+                name="businessState"
+                value={fields.businessState}
+                onChange={handleChange}
+                autoComplete="address-level1"
+                className={`${inputClass} appearance-none pr-8 cursor-pointer`}
+                aria-label="State"
+              >
+                <option value="">State</option>
+                {AU_STATES.map((s) => (
+                  <option key={s.code} value={s.code}>{s.code}</option>
+                ))}
+              </select>
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/40">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </span>
+            </div>
+            <div>
+              <input
+                type="text"
+                name="businessPostcode"
+                value={fields.businessPostcode}
+                onChange={handleChange}
+                placeholder="Postcode"
+                autoComplete="postal-code"
+                inputMode="numeric"
+                maxLength={4}
+                className={errors.businessPostcode ? inputErrorClass : inputClass}
+              />
+              {errors.businessPostcode && (
+                <p className="mt-1.5 text-xs text-red-400" role="alert">{errors.businessPostcode}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Row 5: Message (optional) */}
       <Field label="Message" error={undefined}>
