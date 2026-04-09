@@ -1,8 +1,7 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import ScrollReveal from '@/components/ScrollReveal';
+import ProductImage3D from '@/components/ProductImage3D';
 import productContent from '@/content/product.json';
-import { withBasePath } from '@/lib/basePath';
 
 const keyIngredients = [
   { name: 'Turmeric',  emoji: '🌿' },
@@ -32,22 +31,10 @@ export default function ProductShowcase() {
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
 
-          {/* ── Left: Product image ──────────────────────────────── */}
+          {/* ── Left: Product image (3D scroll-adaptive) ─────────── */}
           <ScrollReveal animation="fade-right">
             <div className="flex justify-center lg:justify-end">
-              <div className="relative w-[320px] sm:w-[380px] tilt-card">
-                {/* Glow layers */}
-                <div className="absolute inset-8 bg-gradient-to-br from-brand-primary/60 to-brand-warm/50 rounded-full blur-3xl" />
-                <div className="absolute inset-0 bg-gradient-to-t from-brand-navy/40 to-transparent rounded-3xl" />
-                <Image
-                  src={withBasePath(productContent.images[0].src)}
-                  alt={productContent.images[0].alt}
-                  width={380}
-                  height={500}
-                  loading="lazy"
-                  className="relative z-10 w-full h-auto object-contain drop-shadow-2xl"
-                />
-              </div>
+              <ProductImage3D />
             </div>
           </ScrollReveal>
 

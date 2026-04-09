@@ -1,41 +1,141 @@
 'use client';
 
+/**
+ * BrainHero – full-viewport hero with 3D scroll-adaptive brain image.
+ *
+ * Layers:
+ *   1. Deep-space background + radial accent (static)
+ *   2. Text content – fades/rises as user scrolls
+ *   3. Brain image  – responds to scroll with 3D rotations + parallax, and
+ *                     to mouse position with a tilt effect on desktop
+ *
+ * 3D effect algorithm:
+ *   - scrollRotX: brain tilts slightly backward as page scrolls (depth illusion)
+ *   - scrollRotY: subtle side rotation for a premium floating feel
+ *   - parallaxY:  image moves upward faster than scroll (parallax depth)
+ *   - mouseRotX/Y: image follows the cursor for an interactive tilt
+ *
+ * Reduced motion: all dynamic transforms are disabled.
+ * Mobile: mouse-tracking disabled; scroll effects use lighter constants.
+ */
 
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import siteContent from '@/content/site.json';
 
+// 3D scroll effect constants (degrees)
+const SCROLL_ROTATE_X  = 14;   // brain tilts backward as hero scrolls out
+const SCROLL_ROTATE_Y  = 6;    // subtle horizontal rotation
+const SCROLL_PARALLAX  = 0.30; // fraction of scrollY applied as translateY
+const SCROLL_SCALE_MIN = 0.92; // scale at full hero scroll
+
+// Mouse-tracking tilt constants
+const MOUSE_TILT_DESKTOP = 10; // max degrees on desktop
+const MOUSE_TILT_MOBILE  = 4;  // max degrees on tablet
+
 export default function BrainHero() {
-  const heroRef     = useRef<HTMLElement>(null);
-  const contentRef  = useRef<HTMLDivElement>(null);
+  const heroRef      = useRef<HTMLElement>(null);
+  const contentRef   = useRef<HTMLDivElement>(null);
+  const imageRef     = useRef<HTMLDivElement>(null); // 3D transform target
+  const mouseRef     = useRef({ dx: 0, dy: 0 });    // normalised -1…1 cursor pos
   const [scrollPct, setScrollPct] = useState(0);
 
   const { hero } = siteContent;
 
-  /* ── Scroll: fade content, update progress bar ──────────────────── */
   useEffect(() => {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const isMobile      = window.matchMedia('(max-width: 768px)').matches;
     let rafId: number | undefined;
 
+    // Track scroll values in closure refs to avoid stale state in RAF
+    let currentScrollY   = 0;
+    let currentScrollPct = 0;
+
+    /* ── Build the CSS transform string from scroll + mouse state ── */
+    const buildTransform = (): string => {
+      const { dx, dy } = mouseRef.current;
+      const maxTilt     = isMobile ? MOUSE_TILT_MOBILE : MOUSE_TILT_DESKTOP;
+
+      // Scroll contribution
+      const rotX    = -(currentScrollPct * SCROLL_ROTATE_X);
+      const rotY    =   currentScrollPct * SCROLL_ROTATE_Y;
+      const transY  =   currentScrollY   * SCROLL_PARALLAX;
+      const scale   = 1 - currentScrollPct * (1 - SCROLL_SCALE_MIN);
+
+      // Mouse-tracking contribution (added on top of scroll)
+      const mRotX = -dy * maxTilt;
+      const mRotY =  dx * maxTilt;
+
+      return `perspective(1200px) translateY(-${transY.toFixed(1)}px) rotateX(${(rotX + mRotX).toFixed(2)}deg) rotateY(${(rotY + mRotY).toFixed(2)}deg) scale(${scale.toFixed(3)})`;
+    };
+
+    /* ── Apply transform to the image element ──────────────────── */
+    const applyImageTransform = () => {
+      if (!imageRef.current || reducedMotion) return;
+      imageRef.current.style.transform = buildTransform();
+    };
+
+    /* ── Scroll handler ─────────────────────────────────────────── */
     const onScroll = () => {
       if (rafId !== undefined) cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
         const heroHeight = heroRef.current?.offsetHeight ?? window.innerHeight;
-        const pct = Math.min(window.scrollY / heroHeight, 1);
-        setScrollPct(pct);
+        currentScrollY   = window.scrollY;
+        currentScrollPct = Math.min(currentScrollY / heroHeight, 1);
+        setScrollPct(currentScrollPct);
 
+        // Fade + rise the text content
         if (!reducedMotion && contentRef.current) {
-          // Text fades out as user scrolls
-          const opacity = Math.max(0, 1 - pct * 2.5);
-          const translateY = pct * heroHeight * 0.12;
+          const opacity   = Math.max(0, 1 - currentScrollPct * 2.5);
+          const translateY = currentScrollPct * heroHeight * 0.12;
           contentRef.current.style.opacity   = String(opacity);
           contentRef.current.style.transform = `translateY(${translateY}px)`;
         }
+
+        applyImageTransform();
       });
     };
 
     window.addEventListener('scroll', onScroll, { passive: true });
+
+    /* ── Mouse-tracking tilt (skipped on mobile) ────────────────── */
+    if (!reducedMotion && !isMobile) {
+      const heroEl = heroRef.current;
+
+      const onMouseMove = (e: MouseEvent) => {
+        if (!heroEl) return;
+        const rect = heroEl.getBoundingClientRect();
+        mouseRef.current = {
+          dx: (e.clientX - rect.left - rect.width  / 2) / (rect.width  / 2),
+          dy: (e.clientY - rect.top  - rect.height / 2) / (rect.height / 2),
+        };
+        applyImageTransform();
+      };
+
+      const onMouseLeave = () => {
+        mouseRef.current = { dx: 0, dy: 0 };
+        // Smooth ease-back to scroll-only position
+        if (imageRef.current) {
+          imageRef.current.style.transition = 'transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)';
+          applyImageTransform();
+          setTimeout(() => {
+            if (imageRef.current) imageRef.current.style.transition = '';
+          }, 620);
+        }
+      };
+
+      heroEl?.addEventListener('mousemove', onMouseMove);
+      heroEl?.addEventListener('mouseleave', onMouseLeave);
+
+      return () => {
+        window.removeEventListener('scroll', onScroll);
+        if (rafId !== undefined) cancelAnimationFrame(rafId);
+        heroEl?.removeEventListener('mousemove', onMouseMove);
+        heroEl?.removeEventListener('mouseleave', onMouseLeave);
+      };
+    }
+
     return () => {
       window.removeEventListener('scroll', onScroll);
       if (rafId !== undefined) cancelAnimationFrame(rafId);
@@ -84,19 +184,37 @@ export default function BrainHero() {
         aria-hidden="true"
       />
 
-      {/* ── Brain image — positioned right, reduced size ─────────── */}
+      {/* ── Brain image — outer centres, inner receives 3D transform ── */}
+      {/*
+       * Two-layer approach to avoid the JS `style.transform` overriding the
+       * CSS `translate(-50%)` used for vertical centring:
+       *   • Outer div: absolute positioning + flex vertical centring (no transform)
+       *   • Inner div (imageRef): receives scroll/mouse 3D transforms from JS
+       */}
       <div
-        className="absolute right-0 top-1/2 -translate-y-1/2 w-[340px] h-[340px] sm:w-[420px] sm:h-[420px] lg:w-[500px] lg:h-[500px] pointer-events-none"
+        className="absolute right-0 top-0 bottom-0 flex items-center w-[340px] sm:w-[420px] lg:w-[500px] pointer-events-none"
         aria-hidden="true"
       >
-        <Image
-          src="https://github.com/user-attachments/assets/2e89f42d-2885-4121-a9bd-0d444bfa2384"
-          alt="3D brain illustration"
-          fill
-          className="object-contain drop-shadow-[0_0_40px_rgba(59,130,246,0.4)]"
-          priority
-          unoptimized
-        />
+        <div
+          ref={imageRef}
+          className="relative w-full h-[340px] sm:h-[420px] lg:h-[500px]"
+          style={{ willChange: 'transform', transformStyle: 'preserve-3d' }}
+        >
+          {/* Ambient depth glow — animates independently of the 3D transform */}
+          <div className="absolute inset-4 rounded-full bg-blue-600/20 blur-3xl animate-float-slow"   aria-hidden="true" />
+          <div className="absolute inset-8 rounded-full bg-cyan-500/10  blur-2xl animate-float-medium" aria-hidden="true" />
+          {/* Levitation wrapper — subtle continuous float that layers under the 3D JS transform */}
+          <div className="w-full h-full animate-brain-levitate">
+            <Image
+              src="https://github.com/user-attachments/assets/2e89f42d-2885-4121-a9bd-0d444bfa2384"
+              alt="3D brain illustration"
+              fill
+              className="object-contain drop-shadow-[0_0_50px_rgba(59,130,246,0.5)]"
+              priority
+              unoptimized
+            />
+          </div>
+        </div>
       </div>
 
       {/* ── Text content (left column on desktop, stacked on mobile) ─── */}

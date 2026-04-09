@@ -88,6 +88,17 @@ body {
   animation: hero-badge-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* --- Brain image subtle levitation (inner wrapper — separate from JS 3D transform) --- */
+@keyframes brain-levitate {
+  0%, 100% { transform: translateY(0px)    scale(1); }
+  40%       { transform: translateY(-10px)  scale(1.01); }
+  70%       { transform: translateY(-5px)   scale(0.995); }
+}
+
+.animate-brain-levitate {
+  animation: brain-levitate 8s ease-in-out infinite;
+}
+
 /* --- Floating orbs in hero --- */
 @keyframes float-slow {
   0%, 100% { transform: translateY(0) scale(1); }
@@ -219,6 +230,7 @@ section[class*="bg-brand-navy"] *:focus-visible {
   .animate-float-slow,
   .animate-float-medium,
   .animate-float-fast,
+  .animate-brain-levitate,
   .animate-hero-fade-up,
   .animate-hero-badge-in,
   .animate-scroll-bounce,
