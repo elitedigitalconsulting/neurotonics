@@ -171,6 +171,21 @@ const ADDRESS_AUTOCOMPLETE_MIN_CHARS = 2;
 /** Nominatim User-Agent – required by OpenStreetMap usage policy */
 const NOMINATIM_USER_AGENT = 'Neurotonics/1.0 (neurotonics.com.au)';
 
+/**
+ * Returns a debounced version of `fn` that delays invocation by `delay` ms.
+ * Exported for unit testing.
+ */
+export function debounce<T extends (...args: Parameters<T>) => void>(
+  fn: T,
+  delay: number,
+): (...args: Parameters<T>) => void {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  return (...args: Parameters<T>) => {
+    if (timer !== null) clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+}
+
 interface PlaceSuggestion {
   placeId: string;
   description: string;
@@ -211,7 +226,7 @@ const AU_STATE_ABBR: Record<string, string> = {
   'Northern Territory': 'NT',
 };
 
-function parseNominatimResult(result: NominatimResult): ParsedAddress {
+export function parseNominatimResult(result: NominatimResult): ParsedAddress {
   const a = result.address;
   const address1 = [a.house_number, a.road].filter(Boolean).join(' ');
   const city =
@@ -234,7 +249,7 @@ interface ParsedAddress {
   country: string;
 }
 
-function parseAddressComponents(
+export function parseAddressComponents(
   components: Array<{ longText: string; shortText: string; types: string[] }>,
 ): ParsedAddress {
   const find = (type: string, short = false) => {
@@ -396,7 +411,7 @@ interface AddressAutocompleteProps {
   disabled?: boolean;
 }
 
-function AddressAutocompleteInput({
+export function AddressAutocompleteInput({
   value,
   onChange,
   onPlaceSelect,
@@ -614,10 +629,11 @@ function AddressAutocompleteInput({
         <ul
           id="address-suggestions-listbox"
           role="listbox"
-          className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden"
+          className="absolute z-50 w-full mt-1.5 bg-white border border-gray-100 rounded-xl overflow-hidden animate-fade-in"
+          style={{ boxShadow: '0 8px 30px rgba(10,25,90,0.12), 0 2px 8px rgba(0,0,0,0.06)' }}
         >
           {isFetching && suggestions.length === 0 && (
-            <li className="px-4 py-3 text-sm text-gray-400 flex items-center gap-2">
+            <li className="px-4 py-3.5 text-sm text-gray-400 flex items-center gap-2.5">
               <svg className="w-4 h-4 animate-spin flex-shrink-0" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
@@ -626,7 +642,7 @@ function AddressAutocompleteInput({
             </li>
           )}
           {!isFetching && suggestions.length === 0 && (
-            <li className="px-4 py-3 text-sm text-gray-400">No results found</li>
+            <li className="px-4 py-3.5 text-sm text-gray-400 italic">No results found</li>
           )}
           {suggestions.map((s) => (
             <li
@@ -637,13 +653,13 @@ function AddressAutocompleteInput({
                 e.preventDefault();
                 handleSelect(s.placeId, s.description, s.parsedAddress);
               }}
-              className="flex items-center gap-3 px-4 py-3 text-sm text-gray-800 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0"
+              className="flex items-start gap-3 px-4 py-3.5 text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100 cursor-pointer border-b border-gray-50 last:border-0 transition-colors duration-100"
             >
-              <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 text-brand-primary/50 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              {s.description}
+              <span className="leading-snug">{s.description}</span>
             </li>
           ))}
           {/* Enter manually option always at the bottom of the dropdown */}
@@ -651,7 +667,7 @@ function AddressAutocompleteInput({
             role="option"
             aria-selected={false}
             onMouseDown={handleManualEntryFromDropdown}
-            className="flex items-center gap-3 px-4 py-3 text-sm text-brand-primary hover:bg-blue-50 cursor-pointer font-medium border-t border-gray-100"
+            className="flex items-center gap-3 px-4 py-3.5 text-sm text-brand-primary hover:bg-brand-primary-light active:bg-brand-warm-light cursor-pointer font-medium border-t border-gray-100 transition-colors duration-100"
           >
             <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -666,7 +682,7 @@ function AddressAutocompleteInput({
         <button
           type="button"
           onClick={() => { onManualEntry(); setIsOpen(false); }}
-          className="mt-1.5 text-xs text-brand-primary hover:underline"
+          className="mt-1.5 text-xs text-brand-primary hover:text-brand-primary-dark hover:underline transition-colors duration-150"
         >
           Enter address manually
         </button>
