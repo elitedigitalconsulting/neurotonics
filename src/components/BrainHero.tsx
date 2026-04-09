@@ -1,38 +1,54 @@
 'use client';
 
 /**
- * BrainHero – full-viewport hero with immersive 3D-background brain image.
+ * BrainHero – full-viewport hero with immersive Three.js WebGL 3D brain.
  *
  * Layers (back → front):
  *   1. Deep-space background gradient + radial accent (static)
- *   2. Brain image group – large background element with multi-layer depth FX:
- *        a. Blurred shadow-clone  – simulates depth/cast shadow behind brain
- *        b. Multi-ring ambient glow (depth-pulse, float-slow, float-medium)
- *        c. Levitating brain <Image> – drop-shadow + sharp render
- *        d. Specular highlight div  – bright spot that shifts with mouse tilt
- *        e. Light-sweep overlay     – one-pass diagonal shimmer
+ *   2. BrainCanvas — Three.js WebGL renderer filling the full viewport:
+ *        • Bioluminescent displaced-icosahedron brain mesh
+ *        • Dense cellular surface wireframe network
+ *        • Glass head silhouette with neck
+ *        • Multi-coloured neural pathway tubes
+ *        • Ambient particle field
+ *        • Volumetric bloom planes
+ *        • Scroll-driven rotation + neural activation lighting surge
+ *        • Rhythmic pulse + mouse-tracking tilt
+ *        • Low-performance device fallback (reduced geometry)
  *   3. Text-readability gradient   – dark-left → transparent-right (z-[2])
  *   4. Text content                – fades/rises on scroll (z-10)
  *
- * 3D effect algorithm:
- *   - scrollRotX: brain tilts backward as hero scrolls (depth illusion)
- *   - scrollRotY: subtle side rotation for premium floating feel
- *   - parallaxY:  image moves upward faster than scroll (parallax depth)
- *   - mouseRotX/Y: image follows cursor for interactive tilt
- *   - specularX/Y: specular highlight shifts opposite to tilt (light source illusion)
+ * Fallback: a static radial-gradient placeholder is shown while the canvas
+ * bundle loads (dynamic import) or when WebGL is unavailable.
  *
- * Reduced motion: all dynamic transforms and animations disabled.
- * Mobile: mouse-tracking disabled; scroll uses lighter constants.
+ * Reduced motion: text animation disabled; BrainCanvas respects its own guard.
+ * Mobile: BrainCanvas automatically reduces geometry and DPR.
  */
 
 import { useEffect, useRef, useState } from 'react';
-import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import siteContent from '@/content/site.json';
 
-/** Source URL for the hero brain illustration */
-const BRAIN_IMAGE_SRC =
-  'https://github.com/user-attachments/assets/2e89f42d-2885-4121-a9bd-0d444bfa2384';
+/**
+ * BrainCanvas is loaded client-side only (no SSR) to avoid WebGL/Three.js
+ * being executed in a Node.js environment during static export generation.
+ * The loading fallback renders a deep-space gradient that matches the hero
+ * background so there is no layout shift while the bundle loads.
+ */
+const BrainCanvas = dynamic(() => import('@/components/BrainCanvas'), {
+  ssr: false,
+  loading: () => (
+    <div
+      className="absolute inset-0"
+      style={{
+        background:
+          'radial-gradient(ellipse 70% 80% at 72% 52%, rgba(17,85,238,0.28) 0%, transparent 70%)',
+      }}
+      aria-hidden="true"
+    />
+  ),
+});
 
 // ── 3D scroll effect constants (degrees) ──────────────────────────────────
 export const SCROLL_ROTATE_X  = 14;   // brain tilts backward as hero scrolls out
@@ -61,120 +77,38 @@ export const IMAGE_SIZE = {
 } as const;
 
 export default function BrainHero() {
-  const heroRef      = useRef<HTMLElement>(null);
-  const contentRef   = useRef<HTMLDivElement>(null);
-  const imageRef     = useRef<HTMLDivElement>(null);   // 3D transform target
-  const specRef      = useRef<HTMLDivElement>(null);   // specular highlight target
-  const mouseRef     = useRef({ dx: 0, dy: 0 });      // normalised -1…1 cursor pos
+  const heroRef    = useRef<HTMLElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [scrollPct, setScrollPct] = useState(0);
 
   const { hero } = siteContent;
 
   useEffect(() => {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const isMobile      = window.matchMedia('(max-width: 768px)').matches;
     let rafId: number | undefined;
 
-    // Track scroll values in closure refs to avoid stale state in RAF
-    let currentScrollY   = 0;
     let currentScrollPct = 0;
 
-    /* ── Build the CSS transform string from scroll + mouse state ── */
-    const buildTransform = (): string => {
-      const { dx, dy } = mouseRef.current;
-      const maxTilt     = isMobile ? MOUSE_TILT_MOBILE : MOUSE_TILT_DESKTOP;
-
-      // Scroll contribution
-      const rotX    = -(currentScrollPct * SCROLL_ROTATE_X);
-      const rotY    =   currentScrollPct * SCROLL_ROTATE_Y;
-      const transY  =   currentScrollY   * SCROLL_PARALLAX;
-      const scale   = 1 - currentScrollPct * (1 - SCROLL_SCALE_MIN);
-
-      // Mouse-tracking contribution (added on top of scroll)
-      const mRotX = -dy * maxTilt;
-      const mRotY =  dx * maxTilt;
-
-      return `perspective(1200px) translateY(-${transY.toFixed(1)}px) rotateX(${(rotX + mRotX).toFixed(2)}deg) rotateY(${(rotY + mRotY).toFixed(2)}deg) scale(${scale.toFixed(3)})`;
-    };
-
-    /* ── Update specular highlight position opposite to tilt (light-source illusion) ── */
-    const applySpecular = () => {
-      if (!specRef.current || reducedMotion) return;
-      const { dx, dy } = mouseRef.current;
-      // Specular moves opposite to tilt direction (light appears fixed in space).
-      // SPECULAR_SHIFT controls how far the bright spot travels per unit of tilt.
-      const sx = 50 - dx * SPECULAR_SHIFT;
-      const sy = 38 - dy * SPECULAR_SHIFT;
-      specRef.current.style.background =
-        `radial-gradient(ellipse 38% 32% at ${sx}% ${sy}%, rgba(160,210,255,0.12) 0%, transparent 70%)`;
-    };
-
-    /* ── Apply 3D transform to the image wrapper element ───────── */
-    const applyImageTransform = () => {
-      if (!imageRef.current || reducedMotion) return;
-      imageRef.current.style.transform = buildTransform();
-      applySpecular();
-    };
-
-    /* ── Scroll handler ─────────────────────────────────────────── */
+    /* ── Scroll handler — drives text fade/rise and progress bar ── */
     const onScroll = () => {
       if (rafId !== undefined) cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
         const heroHeight = heroRef.current?.offsetHeight ?? window.innerHeight;
-        currentScrollY   = window.scrollY;
-        currentScrollPct = Math.min(currentScrollY / heroHeight, 1);
+        const scrollY    = window.scrollY;
+        currentScrollPct = Math.min(scrollY / heroHeight, 1);
         setScrollPct(currentScrollPct);
 
-        // Fade + rise the text content
+        // Fade + rise the text content as the hero scrolls out of view
         if (!reducedMotion && contentRef.current) {
           const opacity    = Math.max(0, 1 - currentScrollPct * 2.5);
           const translateY = currentScrollPct * heroHeight * 0.12;
           contentRef.current.style.opacity   = String(opacity);
           contentRef.current.style.transform = `translateY(${translateY}px)`;
         }
-
-        applyImageTransform();
       });
     };
 
     window.addEventListener('scroll', onScroll, { passive: true });
-
-    /* ── Mouse-tracking tilt (skipped on mobile) ────────────────── */
-    if (!reducedMotion && !isMobile) {
-      const heroEl = heroRef.current;
-
-      const onMouseMove = (e: MouseEvent) => {
-        if (!heroEl) return;
-        const rect = heroEl.getBoundingClientRect();
-        mouseRef.current = {
-          dx: (e.clientX - rect.left - rect.width  / 2) / (rect.width  / 2),
-          dy: (e.clientY - rect.top  - rect.height / 2) / (rect.height / 2),
-        };
-        applyImageTransform();
-      };
-
-      const onMouseLeave = () => {
-        mouseRef.current = { dx: 0, dy: 0 };
-        // Smooth ease-back to scroll-only position
-        if (imageRef.current) {
-          imageRef.current.style.transition = 'transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)';
-          applyImageTransform();
-          setTimeout(() => {
-            if (imageRef.current) imageRef.current.style.transition = '';
-          }, 620);
-        }
-      };
-
-      heroEl?.addEventListener('mousemove', onMouseMove);
-      heroEl?.addEventListener('mouseleave', onMouseLeave);
-
-      return () => {
-        window.removeEventListener('scroll', onScroll);
-        if (rafId !== undefined) cancelAnimationFrame(rafId);
-        heroEl?.removeEventListener('mousemove', onMouseMove);
-        heroEl?.removeEventListener('mouseleave', onMouseLeave);
-      };
-    }
 
     return () => {
       window.removeEventListener('scroll', onScroll);
@@ -225,111 +159,25 @@ export default function BrainHero() {
       />
 
       {/*
-       * ── BRAIN IMAGE — immersive 3D background element ─────────────────
+       * ── THREE.JS WEBGL BRAIN CANVAS ────────────────────────────────────
        *
-       * Two-layer approach:
-       *   • Outer div (no JS transform): handles absolute positioning + flex centering
-       *   • Inner div (imageRef): receives scroll + mouse 3D transforms from JS
+       * BrainCanvas fills the full hero viewport and renders:
+       *   • Bioluminescent displaced-icosahedron brain mesh with gyri/sulci
+       *   • Dense cellular surface wireframe (fine irregular cell network)
+       *   • Glass head silhouette with glowing edge outline and neck
+       *   • Multi-coloured neural pathway tubes (Catmull-Rom splines)
+       *   • Ambient particle field (surface + orbital particles)
+       *   • Volumetric bloom planes (fake additive bloom without post-processing)
+       *   • Scroll-driven Y rotation + neural activation lighting surge
+       *   • Rhythmic heartbeat pulse + idle sway
+       *   • Mouse-tracking tilt (desktop only)
+       *   • Automatic low-performance fallback (fewer segments, lower DPR)
        *
-       * The brain is enlarged significantly to become a major background feature.
-       * z-index is deliberately NOT set (defaults to auto/0) so hero text (z-10)
-       * always renders above it.
-       *
-       * Depth layers inside imageRef (back → front):
-       *   1. Blurred shadow-clone    – slightly upscaled blurry copy creates cast shadow
-       *   2. Outer halo glow         – pulsing deep-blue ellipse (animate-brain-depth-pulse)
-       *   3. Mid glow                – slower cyan float layer
-       *   4. Inner accent glow       – hot centre (animate-float-medium)
-       *   5. Light-sweep shimmer     – one-pass diagonal shimmer (animate-light-sweep)
-       *   6. Levitation wrapper      – continuous gentle float (animate-brain-levitate)
-       *        └─ <Image>            – sharp render with strong blue drop-shadow
-       *   7. Specular highlight div  – mouse-driven bright spot (light-source illusion)
+       * z-index: not set (auto/0) so hero text (z-10) renders above it.
+       * pointer-events-none: BrainCanvas listens on window, not the div.
        */}
-      <div
-        className="absolute right-0 top-0 bottom-0 flex items-center
-                   w-[440px] sm:w-[620px] lg:w-[820px] xl:w-[960px]
-                   pointer-events-none"
-        aria-hidden="true"
-        data-testid="brain-image-outer"
-      >
-        <div
-          ref={imageRef}
-          className="relative w-full
-                     h-[440px] sm:h-[620px] lg:h-[820px] xl:h-[960px]"
-          style={{ willChange: 'transform', transformStyle: 'preserve-3d' }}
-          data-testid="brain-image-3d"
-        >
-          {/* Layer 1: Blurred shadow-clone — simulates cast shadow / depth haze */}
-          <div
-            className="absolute inset-0 scale-[1.12] blur-3xl opacity-35 pointer-events-none"
-            aria-hidden="true"
-          >
-            <Image
-              src={BRAIN_IMAGE_SRC}
-              alt=""
-              fill
-              className="object-contain"
-              unoptimized
-            />
-          </div>
-
-          {/* Layer 2: Outer pulsing halo glow */}
-          <div
-            className="absolute inset-0 rounded-full bg-blue-700/20 blur-[90px] animate-brain-depth-pulse"
-            aria-hidden="true"
-          />
-
-          {/* Layer 3: Mid ambient glow — floats slowly */}
-          <div
-            className="absolute inset-[8%] rounded-full bg-blue-600/20 blur-[65px] animate-float-slow"
-            aria-hidden="true"
-          />
-
-          {/* Layer 4: Inner accent glow — cyan highlight */}
-          <div
-            className="absolute inset-[22%] rounded-full bg-cyan-500/15 blur-[45px] animate-float-medium"
-            aria-hidden="true"
-          />
-
-          {/* Layer 5: Hot core highlight */}
-          <div
-            className="absolute inset-[38%] rounded-full bg-blue-300/10 blur-[30px]"
-            aria-hidden="true"
-          />
-
-          {/* Layer 6: Diagonal light-sweep shimmer (one-pass, very subtle) */}
-          <div
-            className="absolute inset-0 animate-light-sweep pointer-events-none overflow-hidden rounded-full"
-            style={{
-              background:
-                'linear-gradient(135deg, transparent 30%, rgba(140,190,255,0.07) 50%, transparent 70%)',
-            }}
-            aria-hidden="true"
-          />
-
-          {/* Layer 7: Brain image inside levitation wrapper */}
-          <div className="absolute inset-0 animate-brain-levitate">
-            <Image
-              src={BRAIN_IMAGE_SRC}
-              alt="3D brain illustration"
-              fill
-              className="object-contain drop-shadow-[0_0_80px_rgba(59,130,246,0.65)]"
-              priority
-              unoptimized
-            />
-          </div>
-
-          {/* Layer 8: Specular highlight — position updated by JS on mouse move */}
-          <div
-            ref={specRef}
-            className="absolute inset-0 rounded-full pointer-events-none"
-            style={{
-              background:
-                'radial-gradient(ellipse 38% 32% at 50% 38%, rgba(160,210,255,0.08) 0%, transparent 70%)',
-            }}
-            aria-hidden="true"
-          />
-        </div>
+      <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+        <BrainCanvas className="w-full h-full" />
       </div>
 
       {/*
