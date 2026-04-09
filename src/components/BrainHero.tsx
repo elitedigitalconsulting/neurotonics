@@ -1,40 +1,10 @@
 'use client';
 
-/**
- * BrainHero — full-viewport 3D hero section
- *
- * Replaces the existing ParallaxHero with an ultra-premium Three.js
- * animated hero featuring:
- *   • Procedural 3D brain inside a translucent glass head
- *   • Scroll-driven head rotation + "brain activation" lighting
- *   • Text content overlaid, fading out on scroll
- *   • Scroll-progress indicator bar
- *   • Static fallback image for browsers that don't support WebGL
- *   • Mouse-tilt interactivity
- *   • Full a11y: aria-label, reduced-motion support
- */
 
-import dynamic from 'next/dynamic';
 import { useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import siteContent from '@/content/site.json';
-
-/* ── Dynamically import the Three.js canvas — no SSR ─────────────── */
-const BrainCanvas = dynamic(() => import('@/components/BrainCanvas'), {
-  ssr: false,
-  loading: () => (
-    /* Fallback placeholder while Three.js initialises */
-    <div className="w-full h-full flex items-center justify-center">
-      <div className="relative w-48 h-48 sm:w-64 sm:h-64">
-        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-brand-primary/40 to-brand-warm/30 blur-2xl animate-pulse" />
-        <div className="absolute inset-6 rounded-full bg-gradient-to-br from-brand-primary/60 to-brand-warm/50 blur-xl" />
-        <div className="absolute inset-0 flex items-center justify-center text-white/50 text-sm tracking-widest uppercase">
-          Loading…
-        </div>
-      </div>
-    </div>
-  ),
-});
 
 export default function BrainHero() {
   const heroRef     = useRef<HTMLElement>(null);
@@ -114,12 +84,20 @@ export default function BrainHero() {
         aria-hidden="true"
       />
 
-      {/* ── Three.js canvas fills the entire section ─────────────── */}
-      {/*
-       * The canvas is absolutely positioned behind the text content
-       * and uses pointer-events: none so interactions pass through to links.
-       */}
-      <BrainCanvas className="absolute inset-0 w-full h-full" />
+      {/* ── Brain image — positioned right, reduced size ─────────── */}
+      <div
+        className="absolute right-0 top-1/2 -translate-y-1/2 w-[340px] h-[340px] sm:w-[420px] sm:h-[420px] lg:w-[500px] lg:h-[500px] pointer-events-none"
+        aria-hidden="true"
+      >
+        <Image
+          src="https://github.com/user-attachments/assets/2e89f42d-2885-4121-a9bd-0d444bfa2384"
+          alt="3D brain illustration"
+          fill
+          className="object-contain drop-shadow-[0_0_40px_rgba(59,130,246,0.4)]"
+          priority
+          unoptimized
+        />
+      </div>
 
       {/* ── Text content (left column on desktop, stacked on mobile) ─── */}
       <div
