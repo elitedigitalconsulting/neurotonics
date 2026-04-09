@@ -42,6 +42,20 @@ const COL_CYAN         = 0x3377ff;  // bright blue (reference mid-tone)
 const COL_BRIGHT_CYAN  = 0x66aaff;  // bright blue highlight
 const COL_ICE_BLUE     = 0xaaccff;  // near-white blue for hottest highlights
 
+// Multicoloured neural-pathway palette — the coloured threads visible in the reference image
+const NEURAL_PATH_PALETTE: readonly number[] = [
+  0xff3322, // red
+  0xff6633, // orange-red
+  0x22ee55, // green
+  0x00ccff, // cyan
+  0x4488ff, // blue
+  0xffdd22, // yellow
+  0xff44aa, // pink
+  0xffffff, // bright white
+  0x88ffcc, // mint
+  0xff8833, // orange
+] as const;
+
 /* ─── Helpers ────────────────────────────────────────────────────────── */
 
 /**
@@ -111,6 +125,61 @@ function buildBrainGeometry(detail: number): THREE.BufferGeometry {
   geo.computeVertexNormals();
   return geo;
 }
+
+/**
+ * Build a displaced sphere that approximates a human head profile (side view).
+ * Face/forehead protrudes along +z (toward camera). Jaw tapers below.
+ * Scaled so the brain (radius ~1.55) sits naturally in the upper cranium.
+ */
+function buildHeadGeometry(): THREE.BufferGeometry {
+  const R   = 2.0;
+  const geo = new THREE.SphereGeometry(R, 40, 40);
+  const pos = geo.attributes.position as THREE.BufferAttribute;
+  const v   = new THREE.Vector3();
+
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    const nx = v.x / R, ny = v.y / R, nz = v.z / R;
+
+    // Narrow left–right, elongate vertically for a realistic skull proportion
+    v.x *= 0.86;
+    v.y *= 1.06;
+
+    // Face / forehead protrusion — front half, central vertical band
+    if (nz > 0) {
+      const bandH = Math.max(0, 1 - Math.abs(ny - 0.08) * 1.85);
+      v.z += nz * bandH * 0.60;
+    }
+
+    // Nose bump — small forward protrusion at mid-face centre
+    if (nz > 0.55 && ny > -0.18 && ny < 0.14 && Math.abs(nx) < 0.22) {
+      const noseR = 1 - Math.abs(nx) / 0.22;
+      const noseV = 1 - Math.abs(ny - 0.0) / 0.22;
+      const noseFwd = (nz - 0.55) / 0.45;
+      v.z += noseR * noseV * noseFwd * 0.40;
+    }
+
+    // Flatten back of cranium slightly
+    if (nz < -0.32) {
+      v.z += (nz + 0.32) * 0.20;
+    }
+
+    // Jaw / chin — lower portion tapers to a rounded chin point
+    if (ny < -0.50) {
+      const cf      = Math.min(1, (-ny - 0.50) / 0.50);
+      const frontW  = Math.max(0, nz * 0.5 + 0.5);
+      v.x *= (1 - cf * 0.52 * frontW);
+      v.z *= (1 - cf * 0.42 * Math.max(0, nz + 0.2));
+      v.y -= cf * 0.26 * R;
+    }
+
+    pos.setXYZ(i, v.x, v.y, v.z);
+  }
+
+  geo.computeVertexNormals();
+  return geo;
+}
+
 
 /**
  * Generate a smooth Catmull-Rom spline biased towards the brain surface.
@@ -227,13 +296,13 @@ export default function BrainCanvas({ className = '' }: Props) {
      * ─────────────────────────────────────────────────────────────── */
     const brainGeoHD = buildBrainGeometry(6); // high-detail solid
     const brainMat   = new THREE.MeshPhysicalMaterial({
-      color:               0x000510,
-      roughness:           0.4,
-      metalness:           0.05,
-      emissive:            new THREE.Color(0x001a55),
-      emissiveIntensity:   1.8,
-      clearcoat:           0.95,
-      clearcoatRoughness:  0.15,
+      color:               0x0d0518,    // dark purple-black
+      roughness:           0.5,
+      metalness:           0.08,
+      emissive:            new THREE.Color(0x200535), // purple emissive
+      emissiveIntensity:   1.4,
+      clearcoat:           0.9,
+      clearcoatRoughness:  0.18,
     });
     const brainMesh = new THREE.Mesh(brainGeoHD, brainMat);
     root.add(brainMesh);
@@ -271,6 +340,68 @@ export default function BrainCanvas({ className = '' }: Props) {
     const denseSurface2 = new THREE.LineSegments(denseWireGeo2, denseWireMat2);
     denseSurface2.scale.setScalar(1.008);
     root.add(denseSurface2);
+
+    /* ─────────────────────────────────────────────────────────────── *
+     *  GLASS HEAD — translucent human skull silhouette                 *
+     *  Surrounds the brain; face protrudes along +z (toward camera).   *
+     *  Brain (radius ~1.55) sits in the upper cranium with the jaw     *
+     *  and neck visible below.                                          *
+     * ─────────────────────────────────────────────────────────────── */
+    const HEAD_OFFSET_Y = -0.38; // shift head down so brain is in upper cranium
+
+    const headGeo = buildHeadGeometry();
+
+    // Glass shell — semi-transparent, DoubleSide for inner+outer faces
+    const headMat = new THREE.MeshPhysicalMaterial({
+      color:        new THREE.Color(0x607080),
+      roughness:    0.12,
+      metalness:    0.08,
+      transparent:  true,
+      opacity:      0.11,
+      side:         THREE.DoubleSide,
+      depthWrite:   false,
+    });
+    const headMesh = new THREE.Mesh(headGeo, headMat);
+    headMesh.renderOrder = 10;
+
+    // Rim glow layer — back-face additive blending creates a silhouette halo
+    const headRimMat = new THREE.MeshBasicMaterial({
+      color:        new THREE.Color(0x3a5588),
+      transparent:  true,
+      opacity:      0.07,
+      blending:     THREE.AdditiveBlending,
+      side:         THREE.BackSide,
+      depthWrite:   false,
+    });
+    const headRimMesh = new THREE.Mesh(headGeo, headRimMat);
+    headRimMesh.scale.setScalar(1.015);
+    headRimMesh.renderOrder = 9;
+
+    // Edge wireframe — glowing structural outline of the head shape
+    const headEdgeGeo = new THREE.EdgesGeometry(headGeo, 10);
+    const headEdgeMat = new THREE.LineBasicMaterial({
+      color:        0x7a9bbb,
+      transparent:  true,
+      opacity:      0.26,
+      blending:     THREE.AdditiveBlending,
+      depthWrite:   false,
+    });
+    const headEdges = new THREE.LineSegments(headEdgeGeo, headEdgeMat);
+    headEdges.renderOrder = 11;
+
+    // Neck cylinder — tapered, same glass material as head
+    const neckGeo  = new THREE.CylinderGeometry(0.48, 0.60, 1.4, 18);
+    const neckMesh = new THREE.Mesh(neckGeo, headMat);
+    neckMesh.position.set(0, -3.10, -0.06);
+    neckMesh.renderOrder = 10;
+
+    const headGroup = new THREE.Group();
+    headGroup.add(headMesh);
+    headGroup.add(headRimMesh);
+    headGroup.add(headEdges);
+    headGroup.add(neckMesh);
+    headGroup.position.y = HEAD_OFFSET_Y;
+    root.add(headGroup);
 
     /* ─────────────────────────────────────────────────────────────── *
      *  WIREFRAME GLOW LAYERS — three concentric edge sets              *
@@ -345,11 +476,10 @@ export default function BrainCanvas({ className = '' }: Props) {
 
       const tubeGeo = new THREE.TubeGeometry(curve, segs, radius, 3, false);
 
-      // Vary colour between bright blue and bright highlight blue (matches reference)
-      const col = new THREE.Color(COL_BRIGHT_BLUE).lerp(
-        new THREE.Color(COL_BRIGHT_CYAN), rng(),
-      );
-      const baseOpacity = 0.18 + rng() * 0.26;
+      // Vary colour across the multicoloured palette (reference image coloured threads)
+      const palIdx = Math.floor(rng() * NEURAL_PATH_PALETTE.length);
+      const col    = new THREE.Color(NEURAL_PATH_PALETTE[palIdx]);
+      const baseOpacity = 0.14 + rng() * 0.22;
 
       const tubeMat = new THREE.MeshBasicMaterial({
         color:       col,
@@ -529,9 +659,9 @@ export default function BrainCanvas({ className = '' }: Props) {
       // Pure electric-blue emissive to match reference (no green/cyan tint)
       brainMat.emissiveIntensity = 1.8 + smoothAct * 3.2 + pulse * 0.40;
       brainMat.emissive.setRGB(
-        0.00 + smoothAct * 0.04,
-        0.04 + smoothAct * 0.18 + pulse * 0.03,
-        0.40 + smoothAct * 0.70 + pulse * 0.15,
+        0.08 + smoothAct * 0.22 + pulse * 0.05,  // red — gives purple hue
+        0.01 + smoothAct * 0.05,                   // tiny green
+        0.21 + smoothAct * 0.48 + pulse * 0.10,  // blue
       );
 
       /* ── Dense cellular surface wireframe ────────────────────── */
@@ -593,6 +723,12 @@ export default function BrainCanvas({ className = '' }: Props) {
       denseWireGeo2.dispose();
       denseWireMat.dispose();
       denseWireMat2.dispose();
+      headGeo.dispose();
+      headMat.dispose();
+      headRimMat.dispose();
+      headEdgeGeo.dispose();
+      headEdgeMat.dispose();
+      neckGeo.dispose();
       edgesBase.dispose();
       edgesGeo2.dispose();
       edgesGeo3.dispose();
