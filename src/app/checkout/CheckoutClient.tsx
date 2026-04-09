@@ -1287,6 +1287,7 @@ function CheckoutContent({
   const isAU = address.country === 'AU';
 
   return (
+    <div className="max-w-[1280px] mx-auto w-full">
     <div className="flex flex-col lg:flex-row min-h-[calc(100vh-6rem)]">
 
       {/* Mobile: collapsible order summary */}
@@ -1324,7 +1325,7 @@ function CheckoutContent({
 
       {/* Left column: form */}
       <div className="flex-1 bg-white">
-        <div className="max-w-xl mx-auto lg:ml-auto lg:mr-0 px-4 sm:px-8 lg:px-12 py-8 lg:py-12">
+        <div className="max-w-xl mx-auto px-4 sm:px-8 lg:px-12 py-8 lg:py-12">
 
           <Link href="/cart" className="inline-flex items-center text-sm text-gray-500 hover:text-brand-primary transition-colors mb-8">
             <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1760,6 +1761,7 @@ function CheckoutContent({
         </div>
       </aside>
 
+    </div>
     </div>
   );
 }
