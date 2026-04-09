@@ -993,6 +993,7 @@ function CheckoutContent({
   const [isLoading, setIsLoading] = useState(false);
   const [serverError, setServerError] = useState('');
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [paymentIntentFailed, setPaymentIntentFailed] = useState(false);
   const [successRedirect, setSuccessRedirect] = useState(false);
 
   // Derived
@@ -1084,6 +1085,7 @@ function CheckoutContent({
     if (!selectedShipping || !apiUrl) return;
     let cancelled = false;
     setClientSecret(null);
+    setPaymentIntentFailed(false);
     fetch(`${apiUrl}/create-payment-intent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1096,14 +1098,19 @@ function CheckoutContent({
     })
       .then((r) => r.json())
       .then((data: { clientSecret?: string }) => {
-        if (!cancelled && data.clientSecret) setClientSecret(data.clientSecret);
+        if (!cancelled) {
+          if (data.clientSecret) {
+            setClientSecret(data.clientSecret);
+          } else {
+            setPaymentIntentFailed(true);
+          }
+        }
       })
       .catch(() => {
-        // Payment intent could not be created (e.g. server unreachable).
-        // The payment section will remain in its placeholder state and the
-        // user will see "Select a shipping method above to continue." — a
-        // retry happens automatically when they change the shipping option.
-        if (!cancelled) setClientSecret(null);
+        if (!cancelled) {
+          setClientSecret(null);
+          setPaymentIntentFailed(true);
+        }
       });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1596,11 +1603,13 @@ function CheckoutContent({
               </Elements>
             ) : (
               <div className="p-5 bg-gray-50 rounded-xl border border-gray-200 text-center">
-                {selectedShipping ? (
+                {selectedShipping && apiUrl && !paymentIntentFailed ? (
                   <>
                     <div className="w-5 h-5 border-2 border-brand-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                    <p className="text-sm text-gray-500">Loading payment options\u2026</p>
+                    <p className="text-sm text-gray-500">Loading payment options…</p>
                   </>
+                ) : paymentIntentFailed ? (
+                  <p className="text-sm text-red-500">Unable to load payment options. Please try selecting a different shipping method or refresh the page.</p>
                 ) : (
                   <p className="text-sm text-gray-500">Select a shipping method above to continue.</p>
                 )}
