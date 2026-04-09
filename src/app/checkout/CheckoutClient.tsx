@@ -163,6 +163,12 @@ export function updateTotal(subtotal: number, shippingFee: number): number {
 const GOOGLE_PLACES_KEY =
   process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY ?? '';
 
+/** Minimum characters before address suggestions are fetched */
+const ADDRESS_AUTOCOMPLETE_MIN_CHARS = 2;
+
+/** Nominatim User-Agent – required by OpenStreetMap usage policy */
+const NOMINATIM_USER_AGENT = 'Neurotonics/1.0 (neurotonics.com.au)';
+
 interface PlaceSuggestion {
   placeId: string;
   description: string;
@@ -191,25 +197,24 @@ interface NominatimResult {
   };
 }
 
+/** Australian state full-name → abbreviation map (used with Nominatim results) */
+const AU_STATE_ABBR: Record<string, string> = {
+  'New South Wales': 'NSW',
+  Victoria: 'VIC',
+  Queensland: 'QLD',
+  'South Australia': 'SA',
+  'Western Australia': 'WA',
+  Tasmania: 'TAS',
+  'Australian Capital Territory': 'ACT',
+  'Northern Territory': 'NT',
+};
+
 function parseNominatimResult(result: NominatimResult): ParsedAddress {
   const a = result.address;
   const address1 = [a.house_number, a.road].filter(Boolean).join(' ');
   const city =
     a.suburb || a.city || a.town || a.village || a.county || '';
-  const stateAbbr = (() => {
-    const full = a.state ?? '';
-    const map: Record<string, string> = {
-      'New South Wales': 'NSW',
-      Victoria: 'VIC',
-      Queensland: 'QLD',
-      'South Australia': 'SA',
-      'Western Australia': 'WA',
-      Tasmania: 'TAS',
-      'Australian Capital Territory': 'ACT',
-      'Northern Territory': 'NT',
-    };
-    return map[full] ?? full;
-  })();
+  const stateAbbr = AU_STATE_ABBR[a.state ?? ''] ?? (a.state ?? '');
   return {
     address1,
     city,
@@ -419,7 +424,7 @@ function AddressAutocompleteInput({
 
   const fetchSuggestions = useCallback(
     async (input: string) => {
-      if (input.length < 2) {
+      if (input.length < ADDRESS_AUTOCOMPLETE_MIN_CHARS) {
         setSuggestions([]);
         setIsOpen(false);
         return;
@@ -468,7 +473,7 @@ function AddressAutocompleteInput({
           });
           const res = await fetch(
             `https://nominatim.openstreetmap.org/search?${params.toString()}`,
-            { headers: { 'Accept-Language': 'en-AU' } },
+            { headers: { 'Accept-Language': 'en-AU', 'User-Agent': NOMINATIM_USER_AGENT } },
           );
           if (!res.ok) { setSuggestions([]); return; }
           const data = await res.json() as NominatimResult[];
@@ -492,7 +497,7 @@ function AddressAutocompleteInput({
   const handleChange = (val: string) => {
     onChange(val);
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    if (val.length >= 2) {
+    if (val.length >= ADDRESS_AUTOCOMPLETE_MIN_CHARS) {
       setIsFetching(true);
       setIsOpen(true);
     } else {
