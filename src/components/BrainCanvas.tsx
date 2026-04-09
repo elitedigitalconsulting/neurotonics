@@ -56,20 +56,6 @@ const NEURAL_PATH_PALETTE: readonly number[] = [
   0xff8833, // orange
 ] as const;
 
-// Multicoloured neural-pathway palette — the coloured threads visible in the reference image
-const NEURAL_PATH_PALETTE: readonly number[] = [
-  0xff3322, // red
-  0xff6633, // orange-red
-  0x22ee55, // green
-  0x00ccff, // cyan
-  0x4488ff, // blue
-  0xffdd22, // yellow
-  0xff44aa, // pink
-  0xffffff, // bright white
-  0x88ffcc, // mint
-  0xff8833, // orange
-] as const;
-
 /* ─── Helpers ────────────────────────────────────────────────────────── */
 
 /**
