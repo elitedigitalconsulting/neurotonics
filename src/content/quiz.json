@@ -88,7 +88,7 @@
         },
         {
           "value": "c",
-          "label": "I sleep ok but feel mentally hazy in the morning",
+          "label": "I sleep okay but feel mentally hazy in the morning",
           "scores": { "fatigue": 2, "stress": 0, "memory": 3, "focus": 0 }
         },
         {

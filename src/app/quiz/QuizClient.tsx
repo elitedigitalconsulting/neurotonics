@@ -10,6 +10,7 @@ type QuizAnswers = Record<string, string>;
 
 const DIMENSION_ORDER: DimensionKey[] = ['fatigue', 'stress', 'memory', 'focus'];
 const MAX_SCORE_PER_DIMENSION = 15; // 5 questions × max 3 pts each
+const BORDER_OPACITY_HEX = '33'; // ~20 % opacity suffix for hex colours
 
 const DIMENSION_STYLES: Record<DimensionKey, { color: string; light: string; label: string }> = {
   fatigue: { color: 'var(--color-dim-fatigue)', light: 'var(--color-dim-fatigue-light)', label: 'FATIGUE' },
@@ -143,7 +144,7 @@ export default function QuizClient() {
           <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-8 mb-8">
             <h2 className="text-lg font-semibold text-gray-900 mb-1">
               Your personalised plan for{' '}
-              <span style={{ color: topStyle.color }}>{DIMENSION_STYLES[topDim].label.charAt(0) + DIMENSION_STYLES[topDim].label.slice(1).toLowerCase()}</span>
+              <span style={{ color: topStyle.color }}>{topStyle.label.charAt(0) + topStyle.label.slice(1).toLowerCase()}</span>
             </h2>
             <p className="text-xs text-gray-500 mb-5">Evidence-based strategies targeting your highest-scoring dimension.</p>
             <ul className="space-y-4">
@@ -177,7 +178,7 @@ export default function QuizClient() {
             <button
               onClick={handleRestart}
               className="w-full sm:w-auto px-8 py-4 border text-sm font-medium rounded-xl transition-all duration-300 text-center"
-              style={{ borderColor: topStyle.color + '33', color: topStyle.color }}
+              style={{ borderColor: topStyle.color + BORDER_OPACITY_HEX, color: topStyle.color }}
             >
               Retake Quiz
             </button>
