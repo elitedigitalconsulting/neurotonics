@@ -1,123 +1,207 @@
 {
-  "title": "Discover Your Wellness Plan",
-  "subtitle": "Answer a few quick questions and we'll provide personalised tips to help you manage stress and improve your wellbeing.",
+  "title": "Discover Your Cognitive Profile",
+  "subtitle": "Answer 5 quick questions and we'll score your brain across 4 key dimensions to deliver a personalised wellness plan.",
+  "dimensions": {
+    "fatigue": {
+      "label": "Fatigue",
+      "description": "Chronic mental energy depletion, brain fog, poor sleep restoration"
+    },
+    "stress": {
+      "label": "Stress",
+      "description": "Cortisol load, cognitive impairment under pressure, overwhelm"
+    },
+    "memory": {
+      "label": "Memory",
+      "description": "Recall, retention, information processing, acetylcholine pathway"
+    },
+    "focus": {
+      "label": "Focus",
+      "description": "Sustained attention, distraction resistance, deep work capacity"
+    }
+  },
   "questions": [
     {
-      "id": "primary_concern",
-      "question": "What is your primary concern?",
+      "id": "q1",
+      "question": "What slows you down most each day?",
       "options": [
-        { "value": "brain_fog", "label": "Brain fog and lack of clarity", "icon": "cloud" },
-        { "value": "stress", "label": "Stress and anxiety", "icon": "zap" },
-        { "value": "memory", "label": "Poor memory and recall", "icon": "brain" },
-        { "value": "focus", "label": "Difficulty focusing and concentrating", "icon": "target" },
-        { "value": "energy", "label": "Mental fatigue and low energy", "icon": "battery" }
+        {
+          "value": "a",
+          "label": "Mental exhaustion and lack of energy",
+          "scores": { "fatigue": 3, "stress": 1, "memory": 0, "focus": 1 }
+        },
+        {
+          "value": "b",
+          "label": "Stress, pressure, and feeling overwhelmed",
+          "scores": { "fatigue": 1, "stress": 3, "memory": 0, "focus": 1 }
+        },
+        {
+          "value": "c",
+          "label": "Forgetting things or difficulty retaining information",
+          "scores": { "fatigue": 0, "stress": 0, "memory": 3, "focus": 1 }
+        },
+        {
+          "value": "d",
+          "label": "Getting distracted and struggling to stay on task",
+          "scores": { "fatigue": 1, "stress": 1, "memory": 1, "focus": 3 }
+        }
       ]
     },
     {
-      "id": "severity",
-      "question": "How often do you experience this?",
+      "id": "q2",
+      "question": "How do you typically feel by mid-afternoon?",
       "options": [
-        { "value": "rarely", "label": "Occasionally (a few times a month)", "icon": "calendar" },
-        { "value": "sometimes", "label": "Regularly (a few times a week)", "icon": "clock" },
-        { "value": "often", "label": "Most days", "icon": "repeat" },
-        { "value": "always", "label": "Every single day", "icon": "alert" }
+        {
+          "value": "a",
+          "label": "Drained, foggy, and running on empty",
+          "scores": { "fatigue": 3, "stress": 0, "memory": 1, "focus": 1 }
+        },
+        {
+          "value": "b",
+          "label": "Anxious and overwhelmed by what's still left to do",
+          "scores": { "fatigue": 1, "stress": 3, "memory": 0, "focus": 1 }
+        },
+        {
+          "value": "c",
+          "label": "Trouble recalling what I worked on earlier",
+          "scores": { "fatigue": 1, "stress": 0, "memory": 3, "focus": 1 }
+        },
+        {
+          "value": "d",
+          "label": "Scattered and jumping between tasks without finishing",
+          "scores": { "fatigue": 1, "stress": 1, "memory": 0, "focus": 3 }
+        }
       ]
     },
     {
-      "id": "lifestyle",
-      "question": "Which best describes your lifestyle?",
+      "id": "q3",
+      "question": "How does sleep affect your cognitive performance?",
       "options": [
-        { "value": "student", "label": "Student — I need to study and retain information", "icon": "book" },
-        { "value": "professional", "label": "Working professional — Long hours, high demands", "icon": "briefcase" },
-        { "value": "active", "label": "Active lifestyle — I exercise and want mental edge", "icon": "activity" },
-        { "value": "senior", "label": "Over 50 — I want to maintain cognitive health", "icon": "heart" }
+        {
+          "value": "a",
+          "label": "I wake up unrefreshed — sleep never seems to restore me",
+          "scores": { "fatigue": 3, "stress": 1, "memory": 1, "focus": 0 }
+        },
+        {
+          "value": "b",
+          "label": "Racing thoughts and stress keep me from sleeping well",
+          "scores": { "fatigue": 1, "stress": 3, "memory": 0, "focus": 1 }
+        },
+        {
+          "value": "c",
+          "label": "I sleep ok but feel mentally hazy in the morning",
+          "scores": { "fatigue": 2, "stress": 0, "memory": 3, "focus": 0 }
+        },
+        {
+          "value": "d",
+          "label": "Sleep is fine but I lose focus throughout the day",
+          "scores": { "fatigue": 0, "stress": 0, "memory": 1, "focus": 3 }
+        }
       ]
     },
     {
-      "id": "current_habits",
-      "question": "Which wellness habits do you currently practise?",
+      "id": "q4",
+      "question": "When facing pressure or deadlines, you tend to:",
       "options": [
-        { "value": "exercise", "label": "Regular exercise (3+ times per week)", "icon": "activity" },
-        { "value": "meditation", "label": "Meditation or mindfulness", "icon": "heart" },
-        { "value": "sleep", "label": "Consistent 7-9 hours of sleep", "icon": "moon" },
-        { "value": "none", "label": "I'm looking to start healthier habits", "icon": "star" }
+        {
+          "value": "a",
+          "label": "Feel completely depleted with no mental reserves",
+          "scores": { "fatigue": 3, "stress": 1, "memory": 0, "focus": 1 }
+        },
+        {
+          "value": "b",
+          "label": "Become anxious and struggle to make clear decisions",
+          "scores": { "fatigue": 0, "stress": 3, "memory": 1, "focus": 1 }
+        },
+        {
+          "value": "c",
+          "label": "Go blank and forget things you normally know well",
+          "scores": { "fatigue": 1, "stress": 1, "memory": 3, "focus": 0 }
+        },
+        {
+          "value": "d",
+          "label": "Become scattered and unable to concentrate on one thing",
+          "scores": { "fatigue": 0, "stress": 1, "memory": 1, "focus": 3 }
+        }
       ]
     },
     {
-      "id": "goal",
-      "question": "What would make the biggest difference in your daily life?",
+      "id": "q5",
+      "question": "Which improvement would make the biggest difference in your life?",
       "options": [
-        { "value": "calm", "label": "Feeling calmer and more in control", "icon": "leaf" },
-        { "value": "sharp", "label": "Thinking more clearly and quickly", "icon": "zap" },
-        { "value": "resilient", "label": "Bouncing back from tough days faster", "icon": "shield" },
-        { "value": "balanced", "label": "Having more balanced energy throughout the day", "icon": "battery" }
+        {
+          "value": "a",
+          "label": "Waking up energised with sustained mental clarity all day",
+          "scores": { "fatigue": 3, "stress": 0, "memory": 1, "focus": 1 }
+        },
+        {
+          "value": "b",
+          "label": "Feeling calm and resilient under pressure",
+          "scores": { "fatigue": 0, "stress": 3, "memory": 0, "focus": 2 }
+        },
+        {
+          "value": "c",
+          "label": "Reliable memory and sharp information recall",
+          "scores": { "fatigue": 0, "stress": 0, "memory": 3, "focus": 1 }
+        },
+        {
+          "value": "d",
+          "label": "Deep, uninterrupted focus and resistance to distraction",
+          "scores": { "fatigue": 1, "stress": 0, "memory": 1, "focus": 3 }
+        }
       ]
     }
   ],
   "results": {
-    "brain_fog": {
-      "title": "Your Plan to Beat Brain Fog",
-      "description": "Brain fog can be frustrating, but the good news is that small lifestyle changes can make a big difference. Here are evidence-based strategies tailored to your situation.",
+    "fatigue": {
+      "title": "Your Primary Challenge: Mental Fatigue",
+      "description": "Your answers indicate chronic mental energy depletion is your biggest barrier. Brain fog and poor sleep restoration are draining your cognitive reserves. Here are evidence-based strategies to rebuild your mental energy.",
       "tips": [
-        "Stay hydrated — dehydration is one of the most common causes of mental cloudiness. Aim for 2 litres of water daily.",
-        "Take regular screen breaks — follow the 20-20-20 rule: every 20 minutes, look at something 20 feet away for 20 seconds.",
-        "Prioritise quality sleep — maintain a consistent bedtime and avoid screens for 30 minutes before bed.",
-        "Move your body — even a 10-minute walk can increase blood flow to the brain and clear mental haze.",
-        "Eat brain-friendly foods — omega-3 rich foods like salmon, walnuts, and leafy greens support cognitive function."
+        "Optimise sleep restoration — maintain a consistent bedtime and wakeup time every day. Your brain needs predictable sleep cycles to fully restore cognitive function.",
+        "Address sleep quality, not just quantity — avoid screens for 60 minutes before bed, keep your room cool (around 18°C), and try magnesium glycinate to deepen sleep stages.",
+        "Eat for sustained energy — combine protein, healthy fats, and complex carbs at every meal to prevent the blood sugar crashes that trigger afternoon brain fog.",
+        "Take strategic movement breaks — a 5-minute walk every 60–90 minutes significantly increases cerebral blood flow and clears mental fatigue far better than caffeine.",
+        "Try cold exposure in the morning — a 30-second cold finish to your shower triggers a noradrenaline surge that can sustain alertness and energy for 2–4 hours."
       ],
-      "ctaText": "Learn More About Cognitive Wellness",
+      "ctaText": "Explore Neurotonics for Fatigue Support",
       "ctaLink": "/"
     },
     "stress": {
-      "title": "Your Personalised Stress Management Plan",
-      "description": "Stress is your body's natural response to challenges, but chronic stress can take a toll on your wellbeing. These practical strategies can help you regain control.",
+      "title": "Your Primary Challenge: Cognitive Stress Load",
+      "description": "Your profile shows elevated cortisol impact on your thinking — stress is impairing your decision-making and mental clarity. These strategies target your body's stress-response system directly.",
       "tips": [
-        "Practise box breathing — inhale for 4 counts, hold for 4, exhale for 4, hold for 4. Repeat 4 times when you feel overwhelmed.",
-        "Schedule daily decompression time — even 15 minutes of an enjoyable activity (reading, walking, music) helps reset your nervous system.",
-        "Limit caffeine after midday — caffeine can amplify anxiety and disrupt the sleep you need to recover from stress.",
-        "Try progressive muscle relaxation — tense and release each muscle group from toes to head before bed.",
-        "Connect with others — social support is one of the strongest buffers against chronic stress. Reach out to a friend or loved one regularly."
+        "Practise physiological sighing — a double inhale through the nose followed by a long exhale is the fastest known way to reduce acute cortisol and calm the nervous system.",
+        "Schedule a daily decompression window — even 15 minutes of deliberate rest (walking, reading, music) after high-demand periods prevents cortisol from accumulating.",
+        "Limit caffeine after midday — caffeine amplifies cortisol output and disrupts the deep sleep your brain needs to recover from stress.",
+        "Use the 5-4-3-2-1 grounding method when overwhelmed — name 5 things you can see, 4 you can touch, 3 you can hear. This anchors your prefrontal cortex and overrides fight-or-flight.",
+        "Prioritise social connection — even brief, positive social interaction reduces cortisol. A short check-in with a friend or colleague can shift your stress chemistry significantly."
       ],
-      "ctaText": "Explore More Wellness Tips",
+      "ctaText": "Explore Neurotonics for Stress Support",
       "ctaLink": "/"
     },
     "memory": {
-      "title": "Tips to Strengthen Your Memory",
-      "description": "Memory is like a muscle — it gets stronger with the right habits. These science-backed techniques can help you retain and recall information more effectively.",
+      "title": "Your Primary Challenge: Memory & Retention",
+      "description": "Your results highlight the memory and recall dimension — the acetylcholine pathway plays a key role here. These science-backed techniques will help you retain and retrieve information more effectively.",
       "tips": [
-        "Use spaced repetition — review new information at increasing intervals (1 day, 3 days, 7 days) to move it into long-term memory.",
-        "Get 7-9 hours of quality sleep — your brain consolidates memories during deep sleep, so good rest is essential.",
-        "Stay physically active — regular aerobic exercise increases the size of the hippocampus, the brain area involved in memory.",
-        "Reduce multitasking — focus on one thing at a time to improve encoding. It takes about 8 seconds of focused attention to commit something to memory.",
-        "Eat a Mediterranean-style diet — rich in fruits, vegetables, whole grains, and healthy fats, this diet is linked to slower cognitive decline."
+        "Use active recall, not passive re-reading — close your notes and try to retrieve information from scratch. This strengthens memory consolidation far more effectively than reviewing.",
+        "Apply spaced repetition — review new material at intervals of 1 day, 3 days, 7 days, then 21 days. Each review moves information deeper into long-term storage.",
+        "Prioritise sleep for memory consolidation — your brain processes and cements memories during deep slow-wave sleep. Even one night of poor sleep can reduce next-day recall by up to 40%.",
+        "Reduce multitasking — it takes about 8 seconds of focused attention to form a new memory. Constant task-switching prevents proper encoding.",
+        "Eat for acetylcholine — eggs, fish, nuts, and leafy greens are rich in choline, the precursor to acetylcholine, the neurotransmitter most critical to memory formation."
       ],
-      "ctaText": "Discover More Brain Health Tips",
+      "ctaText": "Explore Neurotonics for Memory Support",
       "ctaLink": "/"
     },
     "focus": {
-      "title": "Your Guide to Better Focus",
-      "description": "In a world full of distractions, maintaining focus is a skill that can be trained. Here are proven strategies to sharpen your concentration.",
+      "title": "Your Primary Challenge: Sustained Focus",
+      "description": "Your profile points to difficulty with sustained attention and distraction resistance. Deep work capacity is a trainable skill — these strategies will help you build it systematically.",
       "tips": [
-        "Try the Pomodoro Technique — work in focused 25-minute blocks, then take a 5-minute break. After 4 blocks, take a longer 15-30 minute break.",
-        "Create a distraction-free zone — silence notifications, use website blockers, and keep your workspace tidy during focused work.",
-        "Practise mindfulness meditation — even 10 minutes daily trains your brain to return attention to the present moment.",
-        "Exercise regularly — physical activity boosts dopamine and norepinephrine, both critical for sustained attention.",
-        "Plan your hardest tasks for your peak energy hours — most people focus best in the morning. Identify your personal peak and protect that time."
+        "Use time-blocking with commitment devices — schedule focus blocks in your calendar and silence all notifications during them. Treat these blocks as non-negotiable appointments.",
+        "Try the Pomodoro Technique — 25 minutes of focused work followed by a 5-minute break. After 4 cycles, take a 20-minute break. This trains your attention span like a muscle.",
+        "Identify and eliminate your top distraction trigger — whether it's your phone, email, or background noise, removing the single biggest trigger can improve focus duration by 50%+.",
+        "Exercise before deep work — 20 minutes of moderate aerobic exercise boosts dopamine and norepinephrine levels for up to 2 hours, directly enhancing sustained attention.",
+        "Start with your hardest task first — willpower and focus are finite resources that deplete through the day. Do your most demanding work within the first 90 minutes of waking."
       ],
-      "ctaText": "More Focus & Productivity Tips",
-      "ctaLink": "/"
-    },
-    "energy": {
-      "title": "Your Plan to Boost Mental Energy",
-      "description": "Mental fatigue often stems from lifestyle factors that can be adjusted. These strategies will help you feel more alert and energised throughout the day.",
-      "tips": [
-        "Optimise your sleep schedule — go to bed and wake up at the same time every day, even on weekends, to regulate your circadian rhythm.",
-        "Eat balanced meals — combine protein, complex carbohydrates, and healthy fats to avoid blood sugar crashes that drain mental energy.",
-        "Take movement breaks — stand up and move for 5 minutes every hour. Short walks are especially effective at combating afternoon slumps.",
-        "Stay hydrated — even mild dehydration (1-2%) can significantly impair energy levels and cognitive performance.",
-        "Limit sugar-heavy snacks — they cause rapid energy spikes followed by crashes. Choose nuts, fruit, or yoghurt instead."
-      ],
-      "ctaText": "Explore More Wellness Resources",
+      "ctaText": "Explore Neurotonics for Focus Support",
       "ctaLink": "/"
     }
   }

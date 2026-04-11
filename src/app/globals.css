@@ -14,6 +14,16 @@
   --color-brand-gray: #f5f6f8;
   --color-brand-border: #dde1ec;
   --color-brand-navy: #111928;
+
+  /* Quiz scoring dimension colours */
+  --color-dim-fatigue: #38a169;
+  --color-dim-fatigue-light: #f0fdf4;
+  --color-dim-stress: #d69e2e;
+  --color-dim-stress-light: #fefce8;
+  --color-dim-memory: #3182ce;
+  --color-dim-memory-light: #eff6ff;
+  --color-dim-focus: #e53e3e;
+  --color-dim-focus-light: #fff5f5;
 }
 
 html {
