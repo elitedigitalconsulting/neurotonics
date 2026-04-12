@@ -34,7 +34,8 @@ router.get('/', requireAuth, (req, res) => {
 
     if (search) {
       // Full-text search by customer name or email
-      const like = `%${search.replace(/[%_]/g, '\\$&')}%`;
+      // Escape %, _, and \ for SQLite LIKE operator
+      const like = `%${search.replace(/[%_\\]/g, '\\$&')}%`;
       orders = db.prepare(`
         SELECT * FROM orders
         WHERE customer_name LIKE ? ESCAPE '\\' OR customer_email LIKE ? ESCAPE '\\'

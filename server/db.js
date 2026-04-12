@@ -72,16 +72,6 @@ db.exec(`
 // ---------------------------------------------------------------------------
 // Default settings (only inserted if not already present)
 // ---------------------------------------------------------------------------
-const DEFAULT_SETTINGS = {
-  notification_email:           'orders@neurotonics.com.au',
-  admin_notification_email:     'admin@elitedigitalconsulting.com.au',
-  buy_globally_enabled:         'true',
-  promo_banner_visible:         'true',
-  promo_banner_text:            'Free shipping on orders over $99 | ARTG Listed | Made in Australia',
-  order_confirmation_template:  '',   // populated below
-  admin_alert_template:         '',   // populated below
-};
-
 const DEFAULT_ORDER_TEMPLATE = `
 <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a202c;">
   <div style="background:#1a2e4a;padding:24px;border-radius:8px 8px 0 0;">
@@ -118,8 +108,15 @@ const DEFAULT_ADMIN_ALERT_TEMPLATE = `
 </div>
 `.trim();
 
-DEFAULT_SETTINGS.order_confirmation_template = DEFAULT_ORDER_TEMPLATE;
-DEFAULT_SETTINGS.admin_alert_template = DEFAULT_ADMIN_ALERT_TEMPLATE;
+const DEFAULT_SETTINGS = {
+  notification_email:           'orders@neurotonics.com.au',
+  admin_notification_email:     'admin@elitedigitalconsulting.com.au',
+  buy_globally_enabled:         'true',
+  promo_banner_visible:         'true',
+  promo_banner_text:            'Free shipping on orders over $99 | ARTG Listed | Made in Australia',
+  order_confirmation_template:  DEFAULT_ORDER_TEMPLATE,
+  admin_alert_template:         DEFAULT_ADMIN_ALERT_TEMPLATE,
+};
 
 const insertSetting = db.prepare(
   `INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)`

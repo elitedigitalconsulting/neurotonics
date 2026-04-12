@@ -79,7 +79,14 @@ const nodemailer = require('nodemailer');
 
 router.post('/test-email', requireAuth, requireRole('admin'), async (req, res) => {
   const { to } = req.body;
-  if (!to || typeof to !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to.trim())) {
+  // Basic email validation: must contain exactly one @ with non-empty local and domain parts
+  const trimmed = typeof to === 'string' ? to.trim() : '';
+  const atIndex = trimmed.indexOf('@');
+  const isValidEmail =
+    atIndex > 0 &&
+    atIndex === trimmed.lastIndexOf('@') &&
+    atIndex < trimmed.length - 1;
+  if (!isValidEmail) {
     return res.status(400).json({ error: 'Valid `to` email address required.' });
   }
 
@@ -93,7 +100,7 @@ router.post('/test-email', requireAuth, requireRole('admin'), async (req, res) =
   try {
     await transporter.sendMail({
       from:    process.env.EMAIL_FROM || process.env.EMAIL_USER || 'noreply@neurotonics.com.au',
-      to:      to.trim(),
+      to:      trimmed,
       subject: 'Neurotonics CMS — Email Test',
       text:    'If you received this, your email configuration is working correctly.',
     });

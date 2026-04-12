@@ -144,9 +144,15 @@ function ToggleField({ label, name, checked: initialChecked, sub }: {
   return (
     <label className="flex items-start gap-3 cursor-pointer">
       <div className="relative mt-0.5 shrink-0">
-        <input type="checkbox" name={name} value="true" checked={checked} onChange={() => {}} className="sr-only" />
+        <input
+          type="checkbox"
+          name={name}
+          value="true"
+          checked={checked}
+          onChange={(e) => setChecked(e.target.checked)}
+          className="sr-only"
+        />
         <div
-          onClick={() => setChecked((c) => !c)}
           className={`w-10 h-6 rounded-full transition-colors cursor-pointer ${checked ? 'bg-blue-600' : 'bg-gray-300'}`}
         >
           <div className={`w-4 h-4 bg-white rounded-full shadow absolute top-1 transition-transform ${checked ? 'translate-x-5' : 'translate-x-1'}`} />

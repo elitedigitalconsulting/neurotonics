@@ -102,6 +102,7 @@ app.use(express.json({ limit: '10kb' }));
 // ---------------------------------------------------------------------------
 // CMS Routes (authentication required)
 // ---------------------------------------------------------------------------
+const { cmsRateLimiter } = require('./middleware');
 const { router: authRouter } = require('./auth');
 const cmsContentRouter   = require('./routes/cms-content');
 const cmsProductsRouter  = require('./routes/cms-products');
@@ -109,6 +110,9 @@ const cmsOrdersRouter    = require('./routes/cms-orders');
 const cmsSettingsRouter  = require('./routes/cms-settings');
 const cmsUsersRouter     = require('./routes/cms-users');
 const cmsImagesRouter    = require('./routes/cms-images');
+
+// Apply general rate limit to all CMS API routes
+app.use('/cms', cmsRateLimiter);
 
 app.use('/cms/auth',     authRouter);
 app.use('/cms/content',  cmsContentRouter);
@@ -542,7 +546,7 @@ app.post('/stockist-application', async (req, res) => {
     <p style="font-family:sans-serif;font-size:12px;color:#718096;margin-top:24px;">Submitted via the Neurotonics website stockist application form.</p>
   `.trim();
 
-  const textBody = [
+  const textLines = [
     'New Stockist Application',
     '',
     `Full Name:        ${safe.fullName}`,
@@ -551,8 +555,11 @@ app.post('/stockist-application', async (req, res) => {
     `Email:            ${safe.email}`,
     `Phone:            ${safe.phone}`,
     `Business Address: ${safe.businessAddress}`,
-    safe.message ? `\nMessage:\n${safe.message}` : '',
-  ].join('\n');
+  ];
+  if (safe.message) {
+    textLines.push('', 'Message:', safe.message);
+  }
+  const textBody = textLines.join('\n');
 
   try {
     await emailTransporter.sendMail({
