@@ -215,7 +215,7 @@ async function sendPasswordResetEmail(user, token, baseUrl) {
     <p style="font-size:13px;word-break:break-all;color:#2563eb;">${resetUrl}</p>
     <p style="font-size:13px;color:#718096;">If you didn't request a password reset, you can safely ignore this email.</p>
     <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;">
-    <p style="font-size:12px;color:#718096;">Neurotonics CMS · admin@elitedigitalconsulting.com.au</p>
+    <p style="font-size:12px;color:#718096;">Neurotonics CMS · ${escapeHtml(EMAIL_FROM)}</p>
   </div>
 </div>
   `.trim();
