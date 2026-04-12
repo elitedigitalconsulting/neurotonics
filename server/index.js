@@ -68,6 +68,14 @@ const allowedOrigins = (process.env.CLIENT_ORIGINS || 'http://localhost:3000')
   .map((o) => o.trim())
   .filter(Boolean);
 
+// Also allow the server's own origin so that the admin UI (served from the
+// same host) can make API calls without a CORS error.  Render automatically
+// sets RENDER_EXTERNAL_URL; SERVER_URL can be used as a fallback.
+const selfOrigin = (process.env.RENDER_EXTERNAL_URL || process.env.SERVER_URL || '').replace(/\/$/, '');
+if (selfOrigin && !allowedOrigins.includes(selfOrigin)) {
+  allowedOrigins.push(selfOrigin);
+}
+
 // ---------------------------------------------------------------------------
 // Express app
 // ---------------------------------------------------------------------------
