@@ -34,7 +34,7 @@ export default function StatsSection() {
                   target={stat.target}
                   duration={2200}
                   suffix={stat.suffix}
-                  decimals={'decimals' in stat ? stat.decimals : 0}
+                  decimals={0}
                 />
               </div>
               <p className="text-white/50 text-xs sm:text-sm font-medium tracking-wide uppercase mt-1">
