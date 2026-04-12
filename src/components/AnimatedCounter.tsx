@@ -33,8 +33,9 @@ export default function AnimatedCounter({
 
     // Reduced-motion: set final value immediately without scheduling
     if (reducedMotion) {
-      const id = requestAnimationFrame(() => setValue(target));
-      return () => cancelAnimationFrame(id);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setValue(target);
+      return;
     }
 
     let rafId: number | undefined;
