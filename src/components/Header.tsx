@@ -70,13 +70,13 @@ export default function Header() {
                     {item.label}
                   </Link>
                 ))}
-                <a
+                <Link
                   href="/#stockist"
                   onClick={handleStockistClick}
                   className="transition-colors text-sm font-medium uppercase tracking-wider text-gray-700 hover:text-brand-primary"
                 >
                   Become a Stockist
-                </a>
+                </Link>
               </nav>
 
               {/* Icons */}
@@ -128,13 +128,13 @@ export default function Header() {
                     {item.label}
                   </Link>
                 ))}
-                <a
+                <Link
                   href="/#stockist"
                   onClick={handleStockistClick}
                   className="block py-3 transition-colors text-sm font-medium uppercase tracking-wider text-gray-700 hover:text-brand-primary"
                 >
                   Become a Stockist
-                </a>
+                </Link>
               </nav>
             )}
           </div>
