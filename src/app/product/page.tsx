@@ -79,28 +79,6 @@ function ProductJsonLd() {
         },
       },
     },
-    aggregateRating: {
-      '@type': 'AggregateRating',
-      ratingValue: '4.9',
-      reviewCount: '2400',
-      bestRating: '5',
-      worstRating: '1',
-    },
-    review: siteContent.testimonials.map((t) => ({
-      '@type': 'Review',
-      author: {
-        '@type': 'Person',
-        name: t.name,
-      },
-      reviewRating: {
-        '@type': 'Rating',
-        ratingValue: String(t.rating),
-        bestRating: '5',
-        worstRating: '1',
-      },
-      reviewBody: t.text,
-      datePublished: '2026-01-01',
-    })),
     countryOfOrigin: {
       '@type': 'Country',
       name: 'Australia',
