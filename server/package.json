@@ -1,17 +1,26 @@
 {
   "name": "neurotonics-server",
   "version": "1.0.0",
-  "description": "Neurotonics checkout backend — creates Stripe Checkout sessions",
+  "description": "Neurotonics checkout backend — creates Stripe Checkout sessions and serves CMS",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js"
+    "dev": "node --watch index.js",
+    "build:admin": "cd admin-ui && npm run build",
+    "postinstall": "cd admin-ui && npm install"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.8.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "express-rate-limit": "^8.3.2",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.1.1",
     "nodemailer": "^8.0.5",
+    "sharp": "^0.34.5",
     "stripe": "^17.7.0"
   },
   "engines": {

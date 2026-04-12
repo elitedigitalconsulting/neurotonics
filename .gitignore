@@ -3,6 +3,7 @@
 # dependencies
 /node_modules
 server/node_modules
+server/admin-ui/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -42,3 +43,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# CMS database and uploads (server runtime data — not committed to git)
+server/data/
+server/public/images/

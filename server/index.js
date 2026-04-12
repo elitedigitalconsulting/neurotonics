@@ -4,6 +4,8 @@
  * Express server that handles:
  *   - Stripe Checkout sessions for the Neurotonics static frontend (GitHub Pages)
  *   - Stockist application form submissions (sends email via SMTP)
+ *   - CMS REST API (/cms/*) for the admin dashboard
+ *   - Admin SPA served at /admin
  *
  * Stripe Checkout automatically displays Apple Pay on Safari/iOS and
  * Google Pay on Chrome/Android — no extra configuration required.
@@ -13,17 +15,37 @@
  *   2. Add your STRIPE_SECRET_KEY to .env
  *   3. Add your SMTP email credentials to .env (EMAIL_HOST, EMAIL_USER, EMAIL_PASS)
  *   4. Set CLIENT_ORIGINS to your frontend URL(s)
- *   5. npm install && npm start
+ *   5. Set CMS_JWT_SECRET and CMS_JWT_REFRESH_SECRET
+ *   6. npm install && npm start
  */
 
 'use strict';
 
 require('dotenv').config();
 
+const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const Stripe = require('stripe');
 const nodemailer = require('nodemailer');
+
+// ---------------------------------------------------------------------------
+// Bootstrap first admin user (from env) if no users exist yet
+// ---------------------------------------------------------------------------
+const { db: _db, stmts: _stmts } = require('./db');
+const { hashPassword } = require('./auth');
+(async () => {
+  const userCount = _db.prepare('SELECT COUNT(*) as count FROM users').get().count;
+  if (userCount === 0) {
+    const email    = process.env.ADMIN_INITIAL_EMAIL    || 'admin@neurotonics.com.au';
+    const password = process.env.ADMIN_INITIAL_PASSWORD || 'changeme123';
+    const hash = await hashPassword(password);
+    _stmts.createUser.run(email, hash, 'admin', 'Administrator');
+    console.log(`[bootstrap] Initial admin created: ${email}`);
+  }
+})().catch(console.error);
 
 // ---------------------------------------------------------------------------
 // Initialise Stripe (fails fast if the secret key is missing)
@@ -51,6 +73,9 @@ const allowedOrigins = (process.env.CLIENT_ORIGINS || 'http://localhost:3000')
 // ---------------------------------------------------------------------------
 const app = express();
 
+// Cookie parser must come before routes that use cookies (e.g. auth refresh)
+app.use(cookieParser());
+
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -59,12 +84,62 @@ app.use(
       if (allowedOrigins.includes(origin)) return callback(null, true);
       callback(new Error(`CORS: origin '${origin}' is not allowed`));
     },
-    methods: ['POST'],
-    allowedHeaders: ['Content-Type'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
   })
 );
 
+// ---------------------------------------------------------------------------
+// Stripe webhook route MUST come before express.json() because it needs
+// the raw request body for signature verification.
+// ---------------------------------------------------------------------------
+const stripeWebhookRouter = require('./routes/stripe-webhook');
+app.use('/stripe/webhook', stripeWebhookRouter);
+
 app.use(express.json({ limit: '10kb' }));
+
+// ---------------------------------------------------------------------------
+// CMS Routes (authentication required)
+// ---------------------------------------------------------------------------
+const { cmsRateLimiter } = require('./middleware');
+const { router: authRouter } = require('./auth');
+const cmsContentRouter   = require('./routes/cms-content');
+const cmsProductsRouter  = require('./routes/cms-products');
+const cmsOrdersRouter    = require('./routes/cms-orders');
+const cmsSettingsRouter  = require('./routes/cms-settings');
+const cmsUsersRouter     = require('./routes/cms-users');
+const cmsImagesRouter    = require('./routes/cms-images');
+
+// Apply general rate limit to all CMS API routes
+app.use('/cms', cmsRateLimiter);
+
+app.use('/cms/auth',     authRouter);
+app.use('/cms/content',  cmsContentRouter);
+app.use('/cms/products', cmsProductsRouter);
+app.use('/cms/orders',   cmsOrdersRouter);
+app.use('/cms/settings', cmsSettingsRouter);
+app.use('/cms/users',    cmsUsersRouter);
+app.use('/cms/images',   cmsImagesRouter);
+
+// ---------------------------------------------------------------------------
+// Serve uploaded images statically
+// ---------------------------------------------------------------------------
+const IMAGES_DIR = path.join(__dirname, 'public', 'images');
+if (!fs.existsSync(IMAGES_DIR)) fs.mkdirSync(IMAGES_DIR, { recursive: true });
+app.use('/images', express.static(IMAGES_DIR));
+
+// ---------------------------------------------------------------------------
+// Serve the Admin SPA at /admin
+// ---------------------------------------------------------------------------
+const ADMIN_DIST = path.join(__dirname, 'public', 'admin');
+if (fs.existsSync(ADMIN_DIST)) {
+  app.use('/admin', cmsRateLimiter, express.static(ADMIN_DIST));
+  // Client-side routing fallback
+  app.get('/admin/*path', cmsRateLimiter, (_req, res) => {
+    res.sendFile(path.join(ADMIN_DIST, 'index.html'));
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Validation helpers
