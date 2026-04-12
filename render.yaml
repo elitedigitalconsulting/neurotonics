@@ -1,0 +1,94 @@
+# Render.com deployment blueprint for the Neurotonics CMS server.
+#
+# To deploy:
+#   1. Go to https://dashboard.render.com/
+#   2. Click "New" → "Blueprint"
+#   3. Connect your GitHub repo (elitedigitalconsulting/neurotonics)
+#   4. Render will read this file and create the web service
+#   5. Fill in the required environment variables (marked sync: false)
+#   6. Click "Apply"
+
+services:
+  - type: web
+    name: neurotonics-cms
+    env: node
+    region: oregon          # closest free-tier region to Australia; change to 'singapore' if preferred
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node index.js
+    healthCheckPath: /health
+
+    envVars:
+      # -----------------------------------------------------------------------
+      # Required — set these in the Render dashboard after deploying
+      # -----------------------------------------------------------------------
+
+      # Stripe (from https://dashboard.stripe.com/apikeys)
+      - key: STRIPE_SECRET_KEY
+        sync: false
+
+      # Stripe webhook signing secret (from https://dashboard.stripe.com/webhooks)
+      # Create a webhook endpoint pointing to: https://<your-render-url>/stripe/webhook
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+
+      # CMS JWT secrets — auto-generated unique values
+      - key: CMS_JWT_SECRET
+        generateValue: true
+
+      - key: CMS_JWT_REFRESH_SECRET
+        generateValue: true
+
+      # Initial admin account (created on first boot if no users exist)
+      - key: ADMIN_INITIAL_EMAIL
+        value: admin@neurotonics.com.au
+
+      - key: ADMIN_INITIAL_PASSWORD
+        sync: false
+
+      # -----------------------------------------------------------------------
+      # Allowed CORS origins — update to include your GitHub Pages URL
+      # -----------------------------------------------------------------------
+      - key: CLIENT_ORIGINS
+        value: https://elitedigitalconsulting.github.io
+
+      # -----------------------------------------------------------------------
+      # Email / SMTP (optional — used for stockist application notifications)
+      # -----------------------------------------------------------------------
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+
+      - key: EMAIL_PORT
+        value: "587"
+
+      - key: EMAIL_SECURE
+        value: "false"
+
+      - key: EMAIL_USER
+        sync: false
+
+      - key: EMAIL_PASS
+        sync: false
+
+      - key: EMAIL_FROM
+        value: noreply@neurotonics.com.au
+
+      # -----------------------------------------------------------------------
+      # GitHub PAT — used by the CMS to trigger a Pages rebuild after content
+      # changes. Create a PAT at https://github.com/settings/tokens (repo scope)
+      # -----------------------------------------------------------------------
+      - key: GITHUB_PAT
+        sync: false
+
+      - key: GITHUB_OWNER
+        value: elitedigitalconsulting
+
+      - key: GITHUB_REPO
+        value: neurotonics
+
+      # -----------------------------------------------------------------------
+      # Runtime
+      # -----------------------------------------------------------------------
+      - key: NODE_ENV
+        value: production
