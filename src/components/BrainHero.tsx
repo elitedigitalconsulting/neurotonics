@@ -149,22 +149,6 @@ export default function BrainHero() {
                 {hero.secondaryCtaText}
               </Link>
             </div>
-
-            {/* ── Stats ── */}
-            <div
-              className="mt-12 pt-8 border-t border-white/10 grid grid-cols-2 gap-8 animate-hero-fade-up"
-              style={{ animationDelay: '440ms' }}
-            >
-              {[
-                { value: '7',       label: 'Active Ingredients' },
-                { value: '100%',    label: 'Natural Formula'  },
-              ].map((stat) => (
-                <div key={stat.label}>
-                  <div className="text-2xl sm:text-3xl font-bold text-white">{stat.value}</div>
-                  <div className="text-xs text-white/45 mt-1 tracking-wide">{stat.label}</div>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       </div>
