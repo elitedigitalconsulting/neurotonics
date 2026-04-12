@@ -70,6 +70,7 @@ const EMPTY: FormFields = {
   message: '',
 };
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const WEB3FORMS_KEY = process.env.NEXT_PUBLIC_WEB3FORMS_KEY;
 
 function validateAbn(abn: string): boolean {
@@ -189,39 +190,61 @@ export default function StockistForm() {
     setFormState('submitting');
     setServerError('');
 
-    if (!WEB3FORMS_KEY) {
+    const businessAddress = [
+      fields.businessStreet,
+      fields.businessSuburb,
+      fields.businessState,
+      fields.businessPostcode,
+    ].filter(Boolean).join(', ');
+
+    if (!API_URL && !WEB3FORMS_KEY) {
       setServerError('Form is not configured. Please contact us directly at admin@elitedigitalconsulting.com.au.');
       setFormState('error');
       return;
     }
 
     try {
-      const businessAddress = [
-        fields.businessStreet,
-        fields.businessSuburb,
-        fields.businessState,
-        fields.businessPostcode,
-      ].filter(Boolean).join(', ');
+      let res: Response;
 
-      const res = await fetch('https://api.web3forms.com/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          access_key: WEB3FORMS_KEY,
-          subject: `Stockist Application — ${fields.businessName}`,
-          from_name: fields.fullName,
-          botcheck: false,
-          'Full Name': fields.fullName,
-          'Business Name': fields.businessName,
-          'ABN': fields.abn,
-          'Email': fields.email,
-          'Phone': fields.phone,
-          'Business Address': businessAddress,
-          'Industry': fields.industry,
-          'Business Website': fields.businessWebsite || '(not provided)',
-          'Message': fields.message || '(not provided)',
-        }),
-      });
+      if (API_URL) {
+        // Send via the backend SMTP endpoint (preferred)
+        res = await fetch(`${API_URL}/stockist-application`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fullName: fields.fullName,
+            businessName: fields.businessName,
+            abn: fields.abn,
+            email: fields.email,
+            phone: fields.phone,
+            businessAddress,
+            industry: fields.industry,
+            businessWebsite: fields.businessWebsite,
+            message: fields.message,
+          }),
+        });
+      } else {
+        // Fall back to Web3Forms for static-only deployments
+        res = await fetch('https://api.web3forms.com/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            access_key: WEB3FORMS_KEY,
+            subject: `Stockist Application — ${fields.businessName}`,
+            from_name: fields.fullName,
+            botcheck: false,
+            'Full Name': fields.fullName,
+            'Business Name': fields.businessName,
+            'ABN': fields.abn,
+            'Email': fields.email,
+            'Phone': fields.phone,
+            'Business Address': businessAddress,
+            'Industry': fields.industry,
+            'Business Website': fields.businessWebsite || '(not provided)',
+            'Message': fields.message || '(not provided)',
+          }),
+        });
+      }
 
       const data = await res.json().catch(() => ({}));
 
@@ -230,7 +253,7 @@ export default function StockistForm() {
         setFields(EMPTY);
         setErrors({});
       } else {
-        setServerError(data.message || 'Something went wrong. Please try again.');
+        setServerError(data.message || data.error || 'Something went wrong. Please try again.');
         setFormState('error');
       }
     } catch {

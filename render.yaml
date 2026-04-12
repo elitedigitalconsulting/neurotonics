@@ -74,6 +74,9 @@ services:
       - key: EMAIL_FROM
         value: noreply@neurotonics.com.au
 
+      - key: STOCKIST_EMAIL
+        value: admin@elitedigitalconsulting.com.au
+
       # -----------------------------------------------------------------------
       # GitHub PAT — used by the CMS to trigger a Pages rebuild after content
       # changes. Create a PAT at https://github.com/settings/tokens (repo scope)

@@ -32,6 +32,7 @@ jobs:
 
       - run: npm run build
         env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
           NEXT_PUBLIC_WEB3FORMS_KEY: ${{ secrets.NEXT_PUBLIC_WEB3FORMS_KEY }}
 
       - run: touch out/.nojekyll
