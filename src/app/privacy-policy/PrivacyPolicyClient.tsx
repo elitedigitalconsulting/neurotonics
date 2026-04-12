@@ -213,10 +213,10 @@ const sections: Section[] = [
         <p>
           <span className="font-semibold text-brand-navy">Email:</span>{' '}
           <a
-            href="mailto:hello@neurotonics.com.au"
+            href="mailto:support@neurotonics.com.au"
             className="text-brand-primary hover:text-brand-warm underline underline-offset-2 transition-colors"
           >
-            hello@neurotonics.com.au
+            support@neurotonics.com.au
           </a>
         </p>
       </>
@@ -341,7 +341,7 @@ export default function PrivacyPolicyClient() {
                 By using our website, you consent to the terms of this Privacy Policy. If you have
                 any questions, please{' '}
                 <a
-                  href="mailto:hello@neurotonics.com.au"
+                  href="mailto:support@neurotonics.com.au"
                   className="underline underline-offset-2 hover:text-white transition-colors"
                 >
                   contact us

@@ -322,7 +322,7 @@ export default function ShippingReturnsClient() {
           <h3 className="font-semibold text-brand-navy mt-4">How to Request a Return</h3>
           <ol className="space-y-3 list-none">
             {[
-              <>Email us at <a href="mailto:hello@neurotonics.com.au" className="text-brand-primary hover:underline font-medium">hello@neurotonics.com.au</a> with your order number and reason for return.</>,
+              <>Email us at <a href="mailto:support@neurotonics.com.au" className="text-brand-primary hover:underline font-medium">support@neurotonics.com.au</a> with your order number and reason for return.</>,
               'Our customer care team will respond within 1–2 business days with return instructions.',
               'Pack the item securely and send it to the address provided.',
               'Once we receive and inspect the item, your refund will be processed within 5–7 business days to your original payment method.',
@@ -390,8 +390,8 @@ export default function ShippingReturnsClient() {
           <p className="text-sm text-gray-500 mt-4">
             For any questions about shipping restrictions specific to your location, please contact
             us at{' '}
-            <a href="mailto:hello@neurotonics.com.au" className="text-brand-primary hover:underline font-medium">
-              hello@neurotonics.com.au
+            <a href="mailto:support@neurotonics.com.au" className="text-brand-primary hover:underline font-medium">
+              support@neurotonics.com.au
             </a>{' '}
             before placing your order.
           </p>
@@ -488,7 +488,7 @@ export default function ShippingReturnsClient() {
               within 1–2 business days.
             </p>
             <a
-              href="mailto:hello@neurotonics.com.au"
+              href="mailto:support@neurotonics.com.au"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-brand-primary text-white font-semibold hover:bg-brand-primary-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
