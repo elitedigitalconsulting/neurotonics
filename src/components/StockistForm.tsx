@@ -198,8 +198,25 @@ export default function StockistForm() {
     ].filter(Boolean).join(', ');
 
     if (!API_URL && !WEB3FORMS_KEY) {
-      setServerError('Form is not configured. Please contact us directly at admin@elitedigitalconsulting.com.au.');
-      setFormState('error');
+      // mailto fallback — open the user's email client with all fields pre-filled
+      const subject = encodeURIComponent(`Stockist Application — ${fields.businessName}`);
+      const body = encodeURIComponent(
+        [
+          `Full Name: ${fields.fullName}`,
+          `Business Name: ${fields.businessName}`,
+          `ABN: ${fields.abn}`,
+          `Email: ${fields.email}`,
+          `Phone: ${fields.phone}`,
+          `Business Address: ${businessAddress}`,
+          `Industry: ${fields.industry}`,
+          `Business Website: ${fields.businessWebsite || '(not provided)'}`,
+          `Message: ${fields.message || '(not provided)'}`,
+        ].join('\n'),
+      );
+      window.location.href = `mailto:admin@elitedigitalconsulting.com.au?subject=${subject}&body=${body}`;
+      setFormState('success');
+      setFields(EMPTY);
+      setErrors({});
       return;
     }
 
