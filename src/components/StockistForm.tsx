@@ -162,20 +162,19 @@ export default function StockistForm() {
   const [formState, setFormState] = useState<FormState>('idle');
   const [serverError, setServerError] = useState('');
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
-    const { name, value } = e.target;
+  function updateField(name: string, value: string) {
     setFields((prev) => ({ ...prev, [name]: value }));
-    // Clear individual field error on change
     if (errors[name as keyof FieldErrors]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
   }
 
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    updateField(e.target.name, e.target.value);
+  }
+
   function handleSelectChange(name: string, value: string) {
-    setFields((prev) => ({ ...prev, [name]: value }));
-    if (errors[name as keyof FieldErrors]) {
-      setErrors((prev) => ({ ...prev, [name]: undefined }));
-    }
+    updateField(name, value);
   }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {

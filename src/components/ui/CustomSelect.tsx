@@ -149,7 +149,7 @@ export default function CustomSelect({
           open ? `${borderOpen} ${ringOpen}` : borderClosed,
         ].join(' ')}
       >
-        <span className={value ? 'text-white' : 'text-white/35'}>
+        <span className={value ? 'text-white' : 'text-white/50'}>
           {selectedLabel}
         </span>
         <svg
@@ -189,7 +189,7 @@ export default function CustomSelect({
                 id={`${id}-opt-${idx}`}
                 role="option"
                 aria-selected={isSelected}
-                aria-disabled={isPlaceholder ? true : undefined}
+                aria-disabled={isPlaceholder ? 'true' : 'false'}
                 onMouseDown={(e) => {
                   e.preventDefault();
                   if (!isPlaceholder) selectOption(opt.value);
@@ -198,7 +198,7 @@ export default function CustomSelect({
                 className={[
                   'px-4 py-2.5 text-sm select-none transition-colors',
                   isPlaceholder
-                    ? 'text-white/30 cursor-default'
+                    ? 'text-white/45 cursor-default'
                     : 'cursor-pointer',
                   !isPlaceholder && isFocused
                     ? 'bg-brand-warm/25 text-white'
