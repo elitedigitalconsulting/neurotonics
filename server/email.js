@@ -190,4 +190,44 @@ async function sendAdminOrderAlert(order) {
   });
 }
 
-module.exports = { sendOrderConfirmation, sendAdminOrderAlert, interpolate, escapeHtml };
+// ---------------------------------------------------------------------------
+// sendPasswordResetEmail
+// Sends a password reset link to the specified user.
+// ---------------------------------------------------------------------------
+async function sendPasswordResetEmail(user, token, baseUrl) {
+  const resetUrl = `${baseUrl}/admin/reset-password?token=${encodeURIComponent(token)}`;
+
+  const html = `
+<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a202c;">
+  <div style="background:#1a2e4a;padding:24px;border-radius:8px 8px 0 0;">
+    <h1 style="color:#fff;margin:0;font-size:22px;">Reset Your Password</h1>
+  </div>
+  <div style="background:#f7fafc;padding:24px;border-radius:0 0 8px 8px;">
+    <p>Hi ${escapeHtml(user.name || user.email)},</p>
+    <p>You requested a password reset for your Neurotonics CMS account. Click the button below to set a new password. This link expires in <strong>1 hour</strong>.</p>
+    <p style="text-align:center;margin:32px 0;">
+      <a href="${resetUrl}"
+         style="background:#2563eb;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">
+        Reset Password
+      </a>
+    </p>
+    <p style="font-size:13px;color:#718096;">If the button doesn't work, copy and paste this link into your browser:</p>
+    <p style="font-size:13px;word-break:break-all;color:#2563eb;">${resetUrl}</p>
+    <p style="font-size:13px;color:#718096;">If you didn't request a password reset, you can safely ignore this email.</p>
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;">
+    <p style="font-size:12px;color:#718096;">Neurotonics CMS · ${escapeHtml(EMAIL_FROM)}</p>
+  </div>
+</div>
+  `.trim();
+
+  const transporter = createTransporter();
+  await transporter.sendMail({
+    from:    `"Neurotonics CMS" <${EMAIL_FROM}>`,
+    to:      user.email,
+    subject: 'Reset your Neurotonics CMS password',
+    html,
+    text: `Hi ${user.name || user.email},\n\nReset your password by visiting:\n${resetUrl}\n\nThis link expires in 1 hour.\n\nIf you didn't request this, you can ignore this email.`,
+  });
+}
+
+module.exports = { sendOrderConfirmation, sendAdminOrderAlert, sendPasswordResetEmail, interpolate, escapeHtml };

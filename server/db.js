@@ -67,6 +67,13 @@ db.exec(`
     value      TEXT NOT NULL DEFAULT '',
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    token      TEXT PRIMARY KEY,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at TEXT    NOT NULL,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
 `);
 
 // ---------------------------------------------------------------------------
@@ -183,6 +190,20 @@ const stmts = {
     SELECT id, filename, updated_by, updated_at FROM content_snapshots
     WHERE filename = ? ORDER BY updated_at DESC LIMIT 10
   `),
+
+  // password reset tokens
+  createResetToken: db.prepare(
+    `INSERT OR REPLACE INTO password_reset_tokens (token, user_id, expires_at) VALUES (?, ?, ?)`
+  ),
+  getResetToken: db.prepare(
+    `SELECT * FROM password_reset_tokens WHERE token = ?`
+  ),
+  deleteResetToken: db.prepare(
+    `DELETE FROM password_reset_tokens WHERE token = ?`
+  ),
+  deleteResetTokensByUser: db.prepare(
+    `DELETE FROM password_reset_tokens WHERE user_id = ?`
+  ),
 };
 
 // ---------------------------------------------------------------------------

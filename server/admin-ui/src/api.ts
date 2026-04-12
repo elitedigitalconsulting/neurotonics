@@ -78,6 +78,14 @@ export async function logout() {
   setAccessToken(null);
 }
 
+export async function forgotPassword(email: string) {
+  return api.post<{ message: string }>('/cms/auth/forgot-password', { email });
+}
+
+export async function resetPassword(token: string, password: string) {
+  return api.post<{ message: string }>('/cms/auth/reset-password', { token, password });
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------

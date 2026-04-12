@@ -3,7 +3,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './AuthContext';
 import Sidebar from './components/Sidebar';
 import { ToastContainer } from './components/Toast';
-import LoginPage     from './pages/LoginPage';
+import LoginPage          from './pages/LoginPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage  from './pages/ResetPasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import OrdersPage    from './pages/OrdersPage';
 import ProductsPage  from './pages/ProductsPage';
@@ -27,7 +29,15 @@ function AppShell() {
     );
   }
 
-  if (!user) return <LoginPage />;
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password"  element={<ResetPasswordPage />} />
+        <Route path="*"                element={<LoginPage />} />
+      </Routes>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">

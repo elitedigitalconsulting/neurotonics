@@ -12,11 +12,13 @@
  *   loginLimiter  — rate-limit middleware for the login endpoint
  */
 
+const crypto = require('crypto');
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const { stmts, getSetting } = require('./db');
+const { sendPasswordResetEmail } = require('./email');
 
 const router = express.Router();
 
@@ -41,6 +43,15 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Too many login attempts. Please try again later.' },
   skipSuccessfulRequests: true,
+});
+
+// Rate limiter for forgot-password — 3 requests per 15 minutes per IP
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many password reset requests. Please try again later.' },
 });
 
 // ---------------------------------------------------------------------------
@@ -179,6 +190,82 @@ router.get('/me', requireAuth, (req, res) => {
   const user = stmts.getUserById.get(req.user.sub);
   if (!user) return res.status(404).json({ error: 'User not found.' });
   return res.json({ user });
+});
+
+// ---------------------------------------------------------------------------
+// POST /cms/auth/forgot-password
+// Always returns 200 to avoid leaking whether the email exists.
+// ---------------------------------------------------------------------------
+router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
+  const { email } = req.body || {};
+
+  if (typeof email !== 'string' || !email.trim()) {
+    return res.status(400).json({ error: 'Email is required.' });
+  }
+
+  const normalised = email.trim().toLowerCase();
+  const user = stmts.getUserByEmail.get(normalised);
+
+  if (user) {
+    // Delete any existing tokens for this user then create a new one
+    stmts.deleteResetTokensByUser.run(user.id);
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
+    stmts.createResetToken.run(token, user.id, expiresAt);
+
+    // Determine the base URL for the reset link
+    const baseUrl =
+      process.env.RENDER_EXTERNAL_URL ||
+      process.env.SERVER_URL ||
+      `${req.protocol}://${req.get('host')}`;
+
+    try {
+      await sendPasswordResetEmail(user, token, baseUrl);
+    } catch (err) {
+      console.error('Failed to send password reset email:', err);
+      // Don't expose the error to the client
+    }
+  }
+
+  // Always respond with success to prevent email enumeration
+  return res.json({ message: 'If that email exists in our system, a reset link has been sent.' });
+});
+
+// ---------------------------------------------------------------------------
+// POST /cms/auth/reset-password
+// ---------------------------------------------------------------------------
+router.post('/reset-password', async (req, res) => {
+  const { token, password } = req.body || {};
+
+  if (typeof token !== 'string' || !token.trim()) {
+    return res.status(400).json({ error: 'Reset token is required.' });
+  }
+  if (typeof password !== 'string' || password.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+  }
+
+  const row = stmts.getResetToken.get(token.trim());
+  if (!row) {
+    return res.status(400).json({ error: 'Invalid or expired reset token.' });
+  }
+
+  if (new Date(row.expires_at) < new Date()) {
+    stmts.deleteResetToken.run(token.trim());
+    return res.status(400).json({ error: 'Reset token has expired. Please request a new one.' });
+  }
+
+  const user = stmts.getUserById.get(row.user_id);
+  if (!user) {
+    stmts.deleteResetToken.run(token.trim());
+    return res.status(400).json({ error: 'Invalid or expired reset token.' });
+  }
+
+  const hash = await hashPassword(password);
+  stmts.updateUserPassword.run(hash, row.user_id);
+  stmts.deleteResetTokensByUser.run(row.user_id);
+
+  return res.json({ message: 'Password updated successfully. You can now log in.' });
 });
 
 module.exports = { router, requireAuth, requireRole, loginLimiter, hashPassword, checkPassword };
