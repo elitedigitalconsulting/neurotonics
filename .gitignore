@@ -26,8 +26,13 @@ server/admin-ui/node_modules
 .DS_Store
 *.pem
 
-# Cursor IDE
+# IDE / editor
 .cursor/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
 # debug
 npm-debug.log*
