@@ -130,6 +130,11 @@ app.use('/cms/settings', cmsSettingsRouter);
 app.use('/cms/users',    cmsUsersRouter);
 app.use('/cms/images',   cmsImagesRouter);
 
+// Send anyone opening the Render service URL directly to the CMS login page.
+app.get('/', (_req, res) => {
+  res.redirect(302, '/admin/');
+});
+
 // ---------------------------------------------------------------------------
 // Serve uploaded images statically
 // ---------------------------------------------------------------------------
