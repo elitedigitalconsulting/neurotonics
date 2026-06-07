@@ -34,14 +34,14 @@ const BCRYPT_ROUNDS  = 12;
 const COOKIE_NAME = 'cms_refresh';
 
 // ---------------------------------------------------------------------------
-// Rate limiter — 5 failed attempts per 15 minutes per IP
+// Rate limiter — 20 failed attempts per 15 minutes per IP
 // ---------------------------------------------------------------------------
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Too many login attempts. Please try again later.' },
+  message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
   skipSuccessfulRequests: true,
 });
 
