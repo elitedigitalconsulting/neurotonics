@@ -7,7 +7,7 @@
     "start": "node index.js",
     "dev": "node --watch index.js",
     "build:admin": "cd admin-ui && npm run build",
-    "postinstall": "cd admin-ui && npm install"
+    "postinstall": "cd admin-ui && npm install --include=dev"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

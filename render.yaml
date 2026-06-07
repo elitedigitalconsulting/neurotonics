@@ -40,11 +40,19 @@ services:
       - key: CMS_JWT_REFRESH_SECRET
         generateValue: true
 
-      # Initial admin account (created on first boot if no users exist)
+      # Initial admin account (created on first boot if no users exist).
+      # To reset an existing admin's email/password: set FORCE_ADMIN_RESET=true
+      # in the Render dashboard, redeploy, then remove FORCE_ADMIN_RESET.
       - key: ADMIN_INITIAL_EMAIL
-        value: admin@neurotonics.com.au
+        value: admin@elitedigitalconsulting.com.au
 
       - key: ADMIN_INITIAL_PASSWORD
+        sync: false
+
+      # Set to "true" in the Render dashboard to force-update the admin credentials
+      # from ADMIN_INITIAL_EMAIL / ADMIN_INITIAL_PASSWORD on next start.
+      # Remove after successful login.
+      - key: FORCE_ADMIN_RESET
         sync: false
 
       # -----------------------------------------------------------------------
