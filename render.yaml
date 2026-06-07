@@ -15,7 +15,7 @@ services:
     region: oregon          # closest free-tier region to Australia; change to 'singapore' if preferred
     plan: free
     rootDir: server
-    buildCommand: npm install
+    buildCommand: npm install && npm run build:admin
     startCommand: node index.js
     healthCheckPath: /health
 
