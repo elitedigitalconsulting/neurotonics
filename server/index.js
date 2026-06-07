@@ -32,18 +32,33 @@ const Stripe = require('stripe');
 const nodemailer = require('nodemailer');
 
 // ---------------------------------------------------------------------------
-// Bootstrap first admin user (from env) if no users exist yet
+// Bootstrap first admin user (from env) if no users exist yet.
+// Set FORCE_ADMIN_RESET=true in env to update the primary admin's email and
+// password from ADMIN_INITIAL_EMAIL / ADMIN_INITIAL_PASSWORD on every start.
+// Remove FORCE_ADMIN_RESET after the first successful login.
 // ---------------------------------------------------------------------------
 const { db: _db, stmts: _stmts } = require('./db');
 const { hashPassword } = require('./auth');
 (async () => {
+  const configEmail    = process.env.ADMIN_INITIAL_EMAIL    || 'admin@elitedigitalconsulting.com.au';
+  const configPassword = process.env.ADMIN_INITIAL_PASSWORD || 'changeme123';
   const userCount = _db.prepare('SELECT COUNT(*) as count FROM users').get().count;
+
   if (userCount === 0) {
-    const email    = process.env.ADMIN_INITIAL_EMAIL    || 'admin@elitedigitalconsulting.com.au';
-    const password = process.env.ADMIN_INITIAL_PASSWORD || 'changeme123';
-    const hash = await hashPassword(password);
-    _stmts.createUser.run(email, hash, 'admin', 'Administrator');
-    console.log(`[bootstrap] Initial admin created: ${email}`);
+    const hash = await hashPassword(configPassword);
+    _stmts.createUser.run(configEmail, hash, 'admin', 'Administrator');
+    console.log(`[bootstrap] Initial admin created: ${configEmail}`);
+  } else if (process.env.FORCE_ADMIN_RESET === 'true') {
+    // Find the admin by configured email, or fall back to the first admin in the DB.
+    const target =
+      _stmts.getUserByEmail.get(configEmail) ||
+      _db.prepare("SELECT * FROM users WHERE role = 'admin' ORDER BY id LIMIT 1").get();
+    if (target) {
+      const hash = await hashPassword(configPassword);
+      _stmts.updateUser.run(configEmail, 'admin', target.name || 'Administrator', target.id);
+      _stmts.updateUserPassword.run(hash, target.id);
+      console.log(`[bootstrap] FORCE_ADMIN_RESET: admin updated to ${configEmail}`);
+    }
   }
 })().catch(console.error);
 
