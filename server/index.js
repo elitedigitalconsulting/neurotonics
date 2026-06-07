@@ -39,7 +39,7 @@ const { hashPassword } = require('./auth');
 (async () => {
   const userCount = _db.prepare('SELECT COUNT(*) as count FROM users').get().count;
   if (userCount === 0) {
-    const email    = process.env.ADMIN_INITIAL_EMAIL    || 'admin@neurotonics.com.au';
+    const email    = process.env.ADMIN_INITIAL_EMAIL    || 'admin@elitedigitalconsulting.com.au';
     const password = process.env.ADMIN_INITIAL_PASSWORD || 'changeme123';
     const hash = await hashPassword(password);
     _stmts.createUser.run(email, hash, 'admin', 'Administrator');
