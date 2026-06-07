@@ -802,9 +802,11 @@ function CheckoutContent({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        items: items.map((i) => ({ name: i.name, quantity: i.quantity, price: i.price })),
         amount: total,
         shipping: selectedShipping,
         customerEmail: contact.email || undefined,
+        customerPhone: contact.phone || undefined,
         shippingAddress: address,
       }),
     })

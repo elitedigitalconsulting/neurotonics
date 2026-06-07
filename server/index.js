@@ -375,66 +375,129 @@ app.post('/create-checkout-session', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Authorised product catalog (server-side price truth — mirrors product.json).
+// Prices are stored in cents to avoid floating-point comparison errors.
+// Update this map whenever src/content/product.json prices change.
+// ---------------------------------------------------------------------------
+const PRODUCT_CATALOG = new Map([
+  ['Brain Boost 1000', { slug: 'brain-boost-1000', priceCents: 7990 }], // $79.90 AUD
+]);
+
+// Maximum valid shipping fee in cents ($29.95 international).
+// All zone fees in src/content/shipping.json fall within this cap.
+const MAX_SHIPPING_CENTS = 2995;
+
+// ---------------------------------------------------------------------------
 // POST /create-payment-intent
 // ---------------------------------------------------------------------------
 /**
  * Creates a Stripe PaymentIntent and returns its client_secret to the frontend.
- * The frontend uses Stripe Elements (PaymentElement / PaymentRequestButtonElement)
- * to confirm the payment inline — enabling card, Apple Pay, and Google Pay
- * without leaving the checkout page.
+ *
+ * Security model:
+ *   - Cart items are validated against the authorised product catalog; the
+ *     server computes the subtotal from catalog prices — the client-supplied
+ *     `amount` field is cross-checked but never trusted.
+ *   - Shipping fee must be a non-negative integer ≤ MAX_SHIPPING_CENTS.
+ *   - Full order metadata is stored on the PaymentIntent so the webhook can
+ *     create a CMS order record on payment_intent.succeeded without extra
+ *     round-trips to the frontend.
  */
 app.post('/create-payment-intent', async (req, res) => {
-  const { amount, shipping, customerEmail, shippingAddress } = req.body;
+  const { items, shipping, customerEmail, customerPhone, shippingAddress } = req.body;
 
-  // --- Validate amount ---
-  if (
-    typeof amount !== 'number' ||
-    !Number.isFinite(amount) ||
-    amount <= 0 ||
-    amount > 100000
-  ) {
-    return res.status(400).json({ error: 'Invalid order amount.' });
+  // --- Validate cart items against the authorised catalog ---
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Cart is empty or invalid.' });
+  }
+  if (items.length > 20) {
+    return res.status(400).json({ error: 'Cart exceeds maximum item count.' });
   }
 
-  // --- Sanitise optional metadata ---
+  let subtotalCents = 0;
+  const validatedItems = [];
+
+  for (const item of items) {
+    if (
+      typeof item.name !== 'string' ||
+      typeof item.quantity !== 'number' ||
+      !Number.isInteger(item.quantity) ||
+      item.quantity < 1 ||
+      item.quantity > 99
+    ) {
+      return res.status(400).json({ error: 'One or more cart items are invalid.' });
+    }
+
+    const catalogEntry = PRODUCT_CATALOG.get(item.name);
+    if (!catalogEntry) {
+      return res.status(400).json({ error: `Unknown product: ${item.name}` });
+    }
+
+    subtotalCents += catalogEntry.priceCents * item.quantity;
+    validatedItems.push({ name: item.name, qty: item.quantity, priceCents: catalogEntry.priceCents });
+  }
+
+  // --- Validate shipping fee ---
+  const shippingFeeCents =
+    shipping && typeof shipping.fee === 'number' && Number.isFinite(shipping.fee)
+      ? Math.round(shipping.fee * 100)
+      : 0;
+
+  if (shippingFeeCents < 0 || shippingFeeCents > MAX_SHIPPING_CENTS) {
+    return res.status(400).json({ error: 'Invalid shipping fee.' });
+  }
+
+  const totalCents = subtotalCents + shippingFeeCents;
+
+  // Cross-check client-supplied amount (tolerance: 1 cent for rounding)
+  if (typeof req.body.amount === 'number') {
+    const clientCents = Math.round(req.body.amount * 100);
+    if (Math.abs(clientCents - totalCents) > 1) {
+      console.warn(`[payment-intent] Amount mismatch: client=${clientCents} server=${totalCents}`);
+      return res.status(400).json({ error: 'Order amount does not match server calculation.' });
+    }
+  }
+
+  // --- Sanitise customer details ---
   const safeEmail = sanitiseEmail(customerEmail);
-  const safeMeta = {};
+  const safePhone = sanitiseText(customerPhone, 30);
+
+  // --- Build metadata (stored on PaymentIntent for webhook order creation) ---
+  const safeMeta = {
+    itemsJson:      JSON.stringify(validatedItems).slice(0, 500),
+    subtotal:       String(subtotalCents),
+    shippingFee:    String(shippingFeeCents),
+    shippingZone:   '',
+    shippingOption: '',
+    addrName:       '',
+    addrLine1:      '',
+    addrLine2:      '',
+    addrCity:       '',
+    addrState:      '',
+    addrPostcode:   '',
+    addrCountry:    '',
+    customerPhone:  safePhone,
+  };
 
   if (shipping && typeof shipping === 'object') {
-    if (typeof shipping.zone === 'string') {
-      safeMeta.shippingZone = sanitiseText(shipping.zone, 100);
-    }
-    if (typeof shipping.name === 'string') {
-      safeMeta.shippingOption = sanitiseText(shipping.name, 100);
-    }
-    if (typeof shipping.fee === 'number' && Number.isFinite(shipping.fee)) {
-      safeMeta.shippingFee = String(Math.round(shipping.fee * 100));
-    }
+    if (typeof shipping.zone === 'string') safeMeta.shippingZone   = sanitiseText(shipping.zone, 100);
+    if (typeof shipping.name === 'string') safeMeta.shippingOption = sanitiseText(shipping.name, 100);
   }
 
   if (shippingAddress && typeof shippingAddress === 'object') {
-    if (typeof shippingAddress.fullName === 'string') {
-      safeMeta.addrName = sanitiseText(shippingAddress.fullName, 100);
-    }
-    if (typeof shippingAddress.city === 'string') {
-      safeMeta.addrCity = sanitiseText(shippingAddress.city, 100);
-    }
-    if (typeof shippingAddress.state === 'string') {
-      safeMeta.addrState = sanitiseText(shippingAddress.state, 50);
-    }
-    if (typeof shippingAddress.country === 'string') {
-      safeMeta.addrCountry = sanitiseText(shippingAddress.country, 10);
-    }
+    safeMeta.addrName     = sanitiseText(shippingAddress.fullName, 100);
+    safeMeta.addrLine1    = sanitiseText(shippingAddress.address1, 200);
+    safeMeta.addrLine2    = sanitiseText(shippingAddress.address2, 200);
+    safeMeta.addrCity     = sanitiseText(shippingAddress.city,     100);
+    safeMeta.addrState    = sanitiseText(shippingAddress.state,    100);
+    safeMeta.addrPostcode = sanitiseText(shippingAddress.postcode,  20);
+    safeMeta.addrCountry  = sanitiseText(shippingAddress.country,   10);
   }
 
   // --- Create PaymentIntent ---
   try {
     const paymentIntent = await stripe.paymentIntents.create({
-      // Stripe amounts are in the smallest currency unit (cents for AUD)
-      amount: Math.round(amount * 100),
+      amount:   totalCents,
       currency: 'aud',
-      // Let Stripe automatically surface eligible payment methods
-      // (cards, Apple Pay, Google Pay, etc.) based on dashboard config
       automatic_payment_methods: { enabled: true },
       ...(safeEmail && { receipt_email: safeEmail }),
       metadata: safeMeta,
@@ -443,9 +506,7 @@ app.post('/create-payment-intent', async (req, res) => {
     return res.json({ clientSecret: paymentIntent.client_secret });
   } catch (err) {
     console.error('PaymentIntent creation failed:', err);
-    return res
-      .status(500)
-      .json({ error: 'Failed to create payment. Please try again.' });
+    return res.status(500).json({ error: 'Failed to create payment. Please try again.' });
   }
 });
 
