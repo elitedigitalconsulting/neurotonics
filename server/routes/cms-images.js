@@ -14,8 +14,16 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
-const sharp = require('sharp');
 const { requireAuth } = require('../auth');
+
+// Load sharp lazily so a missing/incompatible native binary doesn't crash the
+// whole server — image upload will fail gracefully with a 503 instead.
+let sharp;
+try {
+  sharp = require('sharp');
+} catch (err) {
+  console.warn('[cms-images] sharp not available — image upload disabled:', err.message);
+}
 
 const router = express.Router();
 
@@ -66,6 +74,7 @@ function resolveUploadPath(filename) {
 // ---------------------------------------------------------------------------
 router.post('/upload', requireAuth, upload.single('image'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No image file provided.' });
+  if (!sharp) return res.status(503).json({ error: 'Image processing is not available on this server.' });
 
   try {
     const ext  = path.extname(req.file.originalname).toLowerCase() || '.jpg';
@@ -74,7 +83,6 @@ router.post('/upload', requireAuth, upload.single('image'), async (req, res) => 
     const outName = `${base}-${ts}.webp`;
     const outPath = path.join(UPLOAD_DIR, outName);
 
-    // Re-encode to webp with max 1600px width for efficiency
     await sharp(req.file.buffer)
       .resize({ width: 1600, withoutEnlargement: true })
       .webp({ quality: 85 })
