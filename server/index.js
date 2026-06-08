@@ -63,17 +63,16 @@ const { hashPassword } = require('./auth');
 })().catch(console.error);
 
 // ---------------------------------------------------------------------------
-// Initialise Stripe (fails fast if the secret key is missing)
+// Initialise Stripe (optional — checkout endpoints disabled if key is missing)
 // ---------------------------------------------------------------------------
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-if (!stripeSecretKey) {
-  console.error('ERROR: STRIPE_SECRET_KEY is not set. Add it to your .env file.');
-  process.exit(1);
-}
+const stripe = stripeSecretKey
+  ? new Stripe(stripeSecretKey, { apiVersion: '2025-02-24.acacia' })
+  : null;
 
-const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2025-03-31.basil',
-});
+if (!stripe) {
+  console.warn('[stripe] STRIPE_SECRET_KEY not set — checkout endpoints will return 503.');
+}
 
 // ---------------------------------------------------------------------------
 // Allowed CORS origins
@@ -254,6 +253,8 @@ function sanitiseText(value, maxLen = 200) {
 // POST /create-checkout-session
 // ---------------------------------------------------------------------------
 app.post('/create-checkout-session', async (req, res) => {
+  if (!stripe) return res.status(503).json({ error: 'Checkout is not configured on this server.' });
+
   const { items, shipping, customerEmail, customerPhone, shippingAddress, successUrl, cancelUrl } = req.body;
 
   // --- Validate cart items ---
@@ -403,6 +404,8 @@ const MAX_SHIPPING_CENTS = 2995;
  *     round-trips to the frontend.
  */
 app.post('/create-payment-intent', async (req, res) => {
+  if (!stripe) return res.status(503).json({ error: 'Checkout is not configured on this server.' });
+
   const { items, shipping, customerEmail, customerPhone, shippingAddress } = req.body;
 
   // --- Validate cart items against the authorised catalog ---
@@ -686,6 +689,7 @@ app.get('/health', (_req, res) => {
 // Stripe connectivity check — confirms the secret key is valid.
 // Returns only safe diagnostic info (no key material).
 app.get('/stripe-health', async (_req, res) => {
+  if (!stripe) return res.status(503).json({ stripe: 'unconfigured', message: 'STRIPE_SECRET_KEY not set.' });
   try {
     const account = await stripe.accounts.retrieve();
     res.json({ stripe: 'ok', mode: account.id.startsWith('acct_') ? 'live' : 'unknown' });

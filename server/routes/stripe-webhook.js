@@ -21,7 +21,7 @@ const router = express.Router();
 
 let stripe;
 function getStripe() {
-  if (!stripe) stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-03-31.basil' });
+  if (!stripe) stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-02-24.acacia' });
   return stripe;
 }
 
