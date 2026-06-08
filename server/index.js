@@ -679,6 +679,22 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
+// Stripe connectivity check — confirms the secret key is valid.
+// Returns only safe diagnostic info (no key material).
+app.get('/stripe-health', async (_req, res) => {
+  try {
+    const account = await stripe.accounts.retrieve();
+    res.json({ stripe: 'ok', mode: account.id.startsWith('acct_') ? 'live' : 'unknown' });
+  } catch (err) {
+    res.status(500).json({
+      stripe: 'error',
+      type:    err.type    || 'unknown',
+      code:    err.code    || null,
+      message: err.message || 'Unknown Stripe error',
+    });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Start server
 // ---------------------------------------------------------------------------
