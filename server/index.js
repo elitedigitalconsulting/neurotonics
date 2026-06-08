@@ -505,8 +505,12 @@ app.post('/create-payment-intent', async (req, res) => {
 
     return res.json({ clientSecret: paymentIntent.client_secret });
   } catch (err) {
-    console.error('PaymentIntent creation failed:', err);
-    return res.status(500).json({ error: 'Failed to create payment. Please try again.' });
+    console.error('PaymentIntent creation failed:', err.message, '| type:', err.type, '| code:', err.code);
+    // Expose safe diagnostic info in the error response (no key material)
+    return res.status(500).json({
+      error: 'Failed to create payment. Please try again.',
+      _debug: { type: err.type || null, code: err.code || null },
+    });
   }
 });
 
