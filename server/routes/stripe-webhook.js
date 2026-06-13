@@ -108,9 +108,9 @@ async function handleCheckoutCompleted(session) {
   const meta = session.metadata || {};
 
   let items = [];
-  try { items = normaliseItems(JSON.parse(meta.items || meta.itemsJson || '[]')); } catch { /* ignore */ }
+  try { items = normaliseItems(JSON.parse(meta.itemsJson || meta.items || '[]')); } catch { /* ignore */ }
 
-  if (items.length === 0) {
+  if (items.length === 0 || items.every(item => !item.price)) {
     try {
       const lineItems = await getStripe().checkout.sessions.listLineItems(stripeId, { limit: 50 });
       items = lineItems.data

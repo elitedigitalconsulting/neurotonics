@@ -39,14 +39,17 @@ if (!getProvider()) {
 // ---------------------------------------------------------------------------
 // Send via Resend HTTP API
 // ---------------------------------------------------------------------------
-async function sendViaResend({ to, subject, html, text }) {
+async function sendViaResend({ to, subject, html, text, replyTo }) {
   const { Resend } = require('resend');
   const resend = new Resend(process.env.RESEND_API_KEY);
 
   const from = process.env.RESEND_FROM_EMAIL ||
     (process.env.EMAIL_FROM ? process.env.EMAIL_FROM : 'Neurotonics <orders@neurotonics.com.au>');
 
-  const { data, error } = await resend.emails.send({ from, to, subject, html, text });
+  const payload = { from, to, subject, html, text };
+  if (replyTo) payload.replyTo = replyTo;
+
+  const { data, error } = await resend.emails.send(payload);
   if (error) throw new Error(`Resend error: ${error.message || JSON.stringify(error)}`);
   return data;
 }
@@ -54,7 +57,7 @@ async function sendViaResend({ to, subject, html, text }) {
 // ---------------------------------------------------------------------------
 // Send via SMTP (nodemailer)
 // ---------------------------------------------------------------------------
-async function sendViaSmtp({ to, subject, html, text }) {
+async function sendViaSmtp({ to, subject, html, text, replyTo }) {
   const transporter = nodemailer.createTransport({
     host:   process.env.EMAIL_HOST   || 'smtp.gmail.com',
     port:   parseInt(process.env.EMAIL_PORT || '587', 10),
@@ -64,13 +67,15 @@ async function sendViaSmtp({ to, subject, html, text }) {
     greetingTimeout:   5000,
     socketTimeout:     10000,
   });
-  await transporter.sendMail({ from: `"Neurotonics" <${EMAIL_FROM}>`, to, subject, html, text });
+  const mail = { from: `"Neurotonics" <${EMAIL_FROM}>`, to, subject, html, text };
+  if (replyTo) mail.replyTo = replyTo;
+  await transporter.sendMail(mail);
 }
 
 // ---------------------------------------------------------------------------
 // Unified send function — selects provider automatically
 // ---------------------------------------------------------------------------
-async function sendEmail({ to, subject, html, text }) {
+async function sendEmail({ to, subject, html, text, replyTo }) {
   const provider = getProvider();
   if (!provider) {
     console.warn(`[email] Skipping email to ${to}: no provider configured (set RESEND_API_KEY or EMAIL_USER+EMAIL_PASS in Render).`);
@@ -78,9 +83,9 @@ async function sendEmail({ to, subject, html, text }) {
   }
   try {
     if (provider === 'resend') {
-      await sendViaResend({ to, subject, html, text });
+      await sendViaResend({ to, subject, html, text, replyTo });
     } else {
-      await sendViaSmtp({ to, subject, html, text });
+      await sendViaSmtp({ to, subject, html, text, replyTo });
     }
     console.log(`[email] ✓ Sent "${subject}" to ${to} via ${provider}`);
   } catch (err) {
@@ -144,6 +149,33 @@ function formatAddress(addr) {
     .filter(Boolean).join(', ');
 }
 
+function resolveAdminNotificationEmail() {
+  return (
+    getSetting('admin_notification_email') ||
+    process.env.ORDER_NOTIFICATION_EMAIL ||
+    process.env.STOCKIST_EMAIL ||
+    'admin@elitedigitalconsulting.com.au'
+  );
+}
+
+function buildDefaultAdminAlertHtml(vars) {
+  return `
+<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a202c;">
+  <h2 style="color:#1a2e4a;">New Product Purchase — ${vars.orderNumber}</h2>
+  <table style="border-collapse:collapse;width:100%;font-size:14px;">
+    <tr><td style="padding:8px 12px;background:#f5f7fa;font-weight:bold;width:160px;">Order</td><td style="padding:8px 12px;">${vars.orderNumber}</td></tr>
+    <tr><td style="padding:8px 12px;background:#f5f7fa;font-weight:bold;">Customer</td><td style="padding:8px 12px;">${vars.customerName}</td></tr>
+    <tr><td style="padding:8px 12px;background:#f5f7fa;font-weight:bold;">Email</td><td style="padding:8px 12px;">${vars.customerEmail}</td></tr>
+    <tr><td style="padding:8px 12px;background:#f5f7fa;font-weight:bold;">Phone</td><td style="padding:8px 12px;">${vars.customerPhone}</td></tr>
+    <tr><td style="padding:8px 12px;background:#f5f7fa;font-weight:bold;">Shipping Address</td><td style="padding:8px 12px;">${vars.shippingAddress}</td></tr>
+    <tr><td style="padding:8px 12px;background:#f5f7fa;font-weight:bold;">Items</td><td style="padding:8px 12px;">${vars.itemsList}</td></tr>
+    <tr><td style="padding:8px 12px;background:#f5f7fa;font-weight:bold;">Total</td><td style="padding:8px 12px;">${vars.total}</td></tr>
+    <tr><td style="padding:8px 12px;background:#f5f7fa;font-weight:bold;">Stripe ID</td><td style="padding:8px 12px;">${vars.stripeSessionId}</td></tr>
+  </table>
+  <p style="font-family:sans-serif;font-size:12px;color:#718096;margin-top:24px;">Triggered by a successful Stripe checkout/payment webhook.</p>
+</div>`.trim();
+}
+
 // ---------------------------------------------------------------------------
 // sendOrderConfirmation — sends to customer
 // ---------------------------------------------------------------------------
@@ -178,14 +210,13 @@ async function sendOrderConfirmation(order) {
 // sendAdminOrderAlert — sends to admin
 // ---------------------------------------------------------------------------
 async function sendAdminOrderAlert(order) {
-  const adminEmail = getSetting('admin_notification_email') || 'admin@elitedigitalconsulting.com.au';
+  const adminEmail = resolveAdminNotificationEmail();
   const template   = getSetting('admin_alert_template') || '';
-  if (!template) return;
 
   let items = []; try { items = JSON.parse(order.items); } catch { /* ignore */ }
   let addr  = {}; try { addr  = JSON.parse(order.shipping_address); } catch { /* ignore */ }
 
-  const html = interpolate(template, {
+  const vars = {
     orderNumber:     escapeHtml(order.order_number || '#' + order.id),
     customerName:    escapeHtml(order.customer_name || ''),
     customerEmail:   escapeHtml(order.customer_email || ''),
@@ -195,11 +226,14 @@ async function sendAdminOrderAlert(order) {
     total:           fmtAud(order.total || 0),
     stripeSessionId: escapeHtml(order.stripe_session_id || ''),
     orderId:         String(order.id || ''),
-  });
+  };
+
+  const html = template ? interpolate(template, vars) : buildDefaultAdminAlertHtml(vars);
 
   await sendEmail({
     to:      adminEmail,
-    subject: `New Order ${order.order_number || '#' + order.id} — ${order.customer_name} — ${fmtAud(order.total)}`,
+    replyTo: order.customer_email || undefined,
+    subject: `New Product Purchase ${order.order_number || '#' + order.id} — ${order.customer_name} — ${fmtAud(order.total)}`,
     html,
     text: `New order received.\nOrder: ${order.order_number || '#' + order.id}\nCustomer: ${order.customer_name} <${order.customer_email}>\nTotal: ${fmtAud(order.total)}`,
   });
