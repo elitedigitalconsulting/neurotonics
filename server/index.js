@@ -670,7 +670,7 @@ app.post('/stockist-application', async (req, res) => {
 
   // --- Save to DB first, respond immediately, email in background ---
   try {
-    stmts.createStockistApplication.run(
+    _stmts.createStockistApplication.run(
       safe.fullName,
       safe.businessName,
       safe.abn,
