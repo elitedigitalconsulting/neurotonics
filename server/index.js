@@ -88,6 +88,16 @@ if (!stripe) {
   console.warn('[stripe] STRIPE_SECRET_KEY not set — checkout endpoints will return 503.');
 }
 
+// Warn about missing webhook secret at startup
+if (!process.env.STRIPE_WEBHOOK_SECRET) {
+  console.warn('[webhook] ⚠️  STRIPE_WEBHOOK_SECRET not set — all Stripe webhooks will be rejected. Orders will NOT be created after payment. Set this in Render environment variables.');
+}
+
+// Warn about missing email config
+if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  console.warn('[email] ⚠️  EMAIL_USER/EMAIL_PASS not set — order confirmation emails will not be sent.');
+}
+
 // ---------------------------------------------------------------------------
 // Allowed CORS origins
 // ---------------------------------------------------------------------------

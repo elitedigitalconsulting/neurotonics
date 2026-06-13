@@ -19,6 +19,13 @@ services:
     startCommand: node index.js
     healthCheckPath: /health
 
+    # Persistent disk — preserves the SQLite database across deployments.
+    # Without this, every deploy wipes the database (orders, admin users, etc.)
+    disk:
+      name: neurotonics-data
+      mountPath: /data
+      sizeGB: 1
+
     # CRITICAL: autoDeploy MUST stay false.
     #
     # The CMS content-save workflow commits JSON changes to the main branch
