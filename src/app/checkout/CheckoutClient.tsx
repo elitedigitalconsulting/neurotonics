@@ -24,12 +24,24 @@ import { clearCheckoutData } from '@/lib/checkoutState';
 import { clearShipping } from '@/lib/shippingState';
 
 // ---------------------------------------------------------------------------
-// Stripe singleton (initialised once at module level)
+// Stripe singleton — loaded dynamically using the publishable key returned
+// by the server alongside the PaymentIntent clientSecret. This avoids
+// relying on a build-time NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY env var.
 // ---------------------------------------------------------------------------
 
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '',
-);
+// Falls back to the build-time env var if present (local dev convenience).
+const BUILD_TIME_PK = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
+
+let stripePromise: ReturnType<typeof loadStripe> | null = null;
+
+function getStripePromise(publishableKey: string): ReturnType<typeof loadStripe> {
+  const key = publishableKey || BUILD_TIME_PK;
+  if (!key) return Promise.resolve(null);
+  if (!stripePromise) {
+    stripePromise = loadStripe(key);
+  }
+  return stripePromise;
+}
 
 const stripeAppearance = {
   theme: 'stripe' as const,
@@ -393,7 +405,7 @@ function ExpressCheckoutSection({
   onSuccess: () => void;
 }) {
   return (
-    <Elements stripe={stripePromise}>
+    <Elements stripe={getStripePromise('')}>
       <ExpressCheckoutInner subtotal={subtotal} apiUrl={apiUrl} onSuccess={onSuccess} />
     </Elements>
   );
@@ -697,6 +709,7 @@ function CheckoutContent({
   const [isLoading, setIsLoading] = useState(false);
   const [serverError, setServerError] = useState('');
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [publishableKey, setPublishableKey] = useState<string>('');
   const [paymentIntentFailed, setPaymentIntentFailed] = useState(false);
   const [successRedirect, setSuccessRedirect] = useState(false);
 
@@ -811,10 +824,11 @@ function CheckoutContent({
       }),
     })
       .then((r) => r.json())
-      .then((data: { clientSecret?: string }) => {
+      .then((data: { clientSecret?: string; publishableKey?: string }) => {
         if (!cancelled) {
           if (data.clientSecret) {
             setClientSecret(data.clientSecret);
+            if (data.publishableKey) setPublishableKey(data.publishableKey);
           } else {
             setPaymentIntentFailed(true);
           }
@@ -1280,7 +1294,7 @@ function CheckoutContent({
 
             {clientSecret ? (
               <Elements
-                stripe={stripePromise}
+                stripe={getStripePromise(publishableKey)}
                 options={{ clientSecret, appearance: stripeAppearance }}
               >
                 <PaymentSectionInner

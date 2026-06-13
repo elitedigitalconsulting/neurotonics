@@ -508,13 +508,14 @@ app.post('/create-payment-intent', async (req, res) => {
       metadata: safeMeta,
     });
 
-    return res.json({ clientSecret: paymentIntent.client_secret });
+    // Return the publishable key alongside the clientSecret so the frontend
+    // can initialise Stripe.js at runtime without a build-time env var.
+    const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY || '';
+    return res.json({ clientSecret: paymentIntent.client_secret, publishableKey });
   } catch (err) {
     console.error('PaymentIntent creation failed:', err.message, '| type:', err.type, '| code:', err.code);
-    // Expose safe diagnostic info in the error response (no key material)
     return res.status(500).json({
       error: 'Failed to create payment. Please try again.',
-      _debug: { type: err.type || null, code: err.code || null },
     });
   }
 });

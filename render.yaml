@@ -28,6 +28,12 @@ services:
       - key: STRIPE_SECRET_KEY
         sync: false
 
+      # Stripe publishable key (starts with pk_live_ or pk_test_)
+      # Returned to the frontend alongside the PaymentIntent clientSecret
+      # so Stripe.js can be initialised at runtime without a build-time env var.
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+
       # Stripe webhook signing secret (from https://dashboard.stripe.com/webhooks)
       # Create a webhook endpoint pointing to: https://<your-render-url>/stripe/webhook
       - key: STRIPE_WEBHOOK_SECRET
