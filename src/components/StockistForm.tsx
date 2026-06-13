@@ -239,6 +239,18 @@ export default function StockistForm() {
       return;
     }
 
+    const apiBody = {
+      fullName: fields.fullName,
+      businessName: fields.businessName,
+      abn: fields.abn,
+      email: fields.email,
+      phone: fields.phone,
+      businessAddress,
+      industry: fields.industry,
+      businessWebsite: fields.businessWebsite,
+      message: fields.message,
+    };
+
     const web3formsPayload = {
       access_key: WEB3FORMS_KEY,
       subject: `Stockist Application — ${fields.businessName}`,
@@ -256,56 +268,60 @@ export default function StockistForm() {
     };
 
     try {
-      let res: Response | null = null;
-
-      // Web3Forms is the fast primary path (~1s, no cold-start penalty).
       if (WEB3FORMS_KEY) {
-        try {
-          res = await fetchWithTimeout('https://api.web3forms.com/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(web3formsPayload),
-          });
-        } catch {
-          // Fall through to the API backend if Web3Forms fails.
-          if (!API_URL) {
-            throw new Error('Unable to submit. Please check your connection and try again, or contact us directly at admin@elitedigitalconsulting.com.au.');
+        // Web3Forms handles the user-facing response (fast, ~1s).
+        const res = await fetchWithTimeout('https://api.web3forms.com/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(web3formsPayload),
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok && data.success) {
+          // Web3Forms succeeded — also fire the Express backend for DB
+          // persistence. keepalive ensures it completes even if the user
+          // navigates away before the cold-start finishes.
+          if (API_URL) {
+            fetch(`${API_URL}/stockist-application`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(apiBody),
+              keepalive: true,
+            }).catch(() => {});
           }
+          setFormState('success');
+          setFields(EMPTY);
+          setErrors({});
+          return;
+        }
+
+        // Web3Forms failed — fall back to the API backend.
+        if (!API_URL) {
+          setServerError(data.message || data.error || 'Something went wrong. Please try again.');
+          setFormState('error');
+          return;
         }
       }
 
-      // Use the API backend when Web3Forms is not configured or failed.
+      // API backend: primary when no Web3Forms key, fallback when Web3Forms fails.
       // The server is pre-warmed on mount so it should respond quickly.
-      if (!res && API_URL) {
-        res = await fetchWithTimeout(`${API_URL}/stockist-application`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fullName: fields.fullName,
-            businessName: fields.businessName,
-            abn: fields.abn,
-            email: fields.email,
-            phone: fields.phone,
-            businessAddress,
-            industry: fields.industry,
-            businessWebsite: fields.businessWebsite,
-            message: fields.message,
-          }),
-        });
-      }
-
-      if (!res) {
+      if (!API_URL) {
         throw new Error('No submission method is configured. Please contact us directly at admin@elitedigitalconsulting.com.au.');
       }
 
-      const data = await res.json().catch(() => ({}));
+      const apiRes = await fetchWithTimeout(`${API_URL}/stockist-application`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(apiBody),
+      });
+      const apiData = await apiRes.json().catch(() => ({}));
 
-      if (res.ok && data.success) {
+      if (apiRes.ok && apiData.success) {
         setFormState('success');
         setFields(EMPTY);
         setErrors({});
       } else {
-        setServerError(data.message || data.error || 'Something went wrong. Please try again.');
+        setServerError(apiData.message || apiData.error || 'Something went wrong. Please try again.');
         setFormState('error');
       }
     } catch (err) {
