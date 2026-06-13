@@ -1,31 +1,17 @@
 'use strict';
 
-/**
- * server/routes/cms-orders.js
- *
- * Shopify-style order management for the CMS.
- *
- * GET    /cms/orders                 — paginated list (filters: status, search)
- * GET    /cms/orders/stats           — summary counts
- * GET    /cms/orders/:id             — single order
- * PATCH  /cms/orders/:id/status      — update status (+ email on cancelled/refunded)
- * POST   /cms/orders/:id/fulfill     — mark fulfilled with tracking info
- * PATCH  /cms/orders/:id/notes       — update customer notes and admin notes
- */
-
 const express = require('express');
 const { requireAuth, requireRole } = require('../auth');
-const { db, stmts } = require('../db');
+const db = require('../db');
 const { sendFulfillmentEmail, sendOrderStatusEmail } = require('../email');
 
 const router = express.Router();
-
 const VALID_STATUSES = new Set(['pending', 'processing', 'fulfilled', 'refunded', 'failed', 'cancelled']);
 
 // ---------------------------------------------------------------------------
 // GET /cms/orders
 // ---------------------------------------------------------------------------
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   const page   = Math.max(1, parseInt(req.query.page  || '1', 10));
   const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit || '20', 10)));
   const offset = (page - 1) * limit;
@@ -34,34 +20,21 @@ router.get('/', requireAuth, (req, res) => {
 
   try {
     let orders, total;
-
     if (search) {
       const like = `%${search.replace(/[%_\\]/g, '\\$&')}%`;
-      orders = db.prepare(`
-        SELECT * FROM orders
-        WHERE customer_name LIKE ? ESCAPE '\\'
-           OR customer_email LIKE ? ESCAPE '\\'
-           OR order_number LIKE ? ESCAPE '\\'
-        ORDER BY created_at DESC LIMIT ? OFFSET ?
-      `).all(like, like, like, limit, offset);
-      total = db.prepare(`
-        SELECT COUNT(*) as count FROM orders
-        WHERE customer_name LIKE ? ESCAPE '\\'
-           OR customer_email LIKE ? ESCAPE '\\'
-           OR order_number LIKE ? ESCAPE '\\'
-      `).get(like, like, like).count;
+      orders = await db.all(`SELECT * FROM orders WHERE customer_name LIKE ? ESCAPE '\\' OR customer_email LIKE ? ESCAPE '\\' OR order_number LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ? OFFSET ?`, [like, like, like, limit, offset]);
+      const r = await db.get(`SELECT COUNT(*) as count FROM orders WHERE customer_name LIKE ? ESCAPE '\\' OR customer_email LIKE ? ESCAPE '\\' OR order_number LIKE ? ESCAPE '\\'`, [like, like, like]);
+      total = Number(r.count);
     } else if (status && VALID_STATUSES.has(status)) {
-      orders = stmts.listOrdersByStatus.all(status, limit, offset);
-      total  = stmts.countOrdersByStatus.get(status).count;
+      orders = await db.all('SELECT * FROM orders WHERE status = ? ORDER BY created_at DESC LIMIT ? OFFSET ?', [status, limit, offset]);
+      const r = await db.get('SELECT COUNT(*) as count FROM orders WHERE status = ?', [status]);
+      total = Number(r.count);
     } else {
-      orders = stmts.listOrders.all(limit, offset);
-      total  = stmts.countOrders.get().count;
+      orders = await db.all('SELECT * FROM orders ORDER BY created_at DESC LIMIT ? OFFSET ?', [limit, offset]);
+      const r = await db.get('SELECT COUNT(*) as count FROM orders');
+      total = Number(r.count);
     }
-
-    return res.json({
-      orders: orders.map(parseOrder),
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
-    });
+    return res.json({ orders: orders.map(parseOrder), pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
   } catch (err) {
     console.error('[cms-orders] List error:', err.message);
     return res.status(500).json({ error: 'Failed to fetch orders.' });
@@ -71,33 +44,13 @@ router.get('/', requireAuth, (req, res) => {
 // ---------------------------------------------------------------------------
 // GET /cms/orders/stats
 // ---------------------------------------------------------------------------
-router.get('/stats', requireAuth, (req, res) => {
+router.get('/stats', requireAuth, async (_req, res) => {
   try {
-    const byStatus = db.prepare(`
-      SELECT status, COUNT(*) as count, COALESCE(SUM(total),0) as revenue
-      FROM orders GROUP BY status
-    `).all();
-
-    const today = db.prepare(`
-      SELECT COUNT(*) as count, COALESCE(SUM(total),0) as revenue
-      FROM orders WHERE date(created_at) = date('now') AND payment_status = 'paid'
-    `).get();
-
-    const week = db.prepare(`
-      SELECT COUNT(*) as count, COALESCE(SUM(total),0) as revenue
-      FROM orders WHERE created_at >= datetime('now', '-7 days') AND payment_status = 'paid'
-    `).get();
-
-    const month = db.prepare(`
-      SELECT COUNT(*) as count, COALESCE(SUM(total),0) as revenue
-      FROM orders WHERE created_at >= datetime('now', '-30 days') AND payment_status = 'paid'
-    `).get();
-
-    const allTime = db.prepare(`
-      SELECT COUNT(*) as count, COALESCE(SUM(total),0) as revenue
-      FROM orders WHERE payment_status = 'paid'
-    `).get();
-
+    const byStatus = await db.all("SELECT status, COUNT(*) as count, COALESCE(SUM(total),0) as revenue FROM orders GROUP BY status");
+    const today    = await db.get("SELECT COUNT(*) as count, COALESCE(SUM(total),0) as revenue FROM orders WHERE date(created_at) = date('now') AND payment_status = 'paid'");
+    const week     = await db.get("SELECT COUNT(*) as count, COALESCE(SUM(total),0) as revenue FROM orders WHERE created_at >= datetime('now', '-7 days') AND payment_status = 'paid'");
+    const month    = await db.get("SELECT COUNT(*) as count, COALESCE(SUM(total),0) as revenue FROM orders WHERE created_at >= datetime('now', '-30 days') AND payment_status = 'paid'");
+    const allTime  = await db.get("SELECT COUNT(*) as count, COALESCE(SUM(total),0) as revenue FROM orders WHERE payment_status = 'paid'");
     return res.json({ byStatus, today, week, month, allTime });
   } catch (err) {
     console.error('[cms-orders] Stats error:', err.message);
@@ -108,8 +61,8 @@ router.get('/stats', requireAuth, (req, res) => {
 // ---------------------------------------------------------------------------
 // GET /cms/orders/:id
 // ---------------------------------------------------------------------------
-router.get('/:id', requireAuth, (req, res) => {
-  const order = findOrder(req.params.id);
+router.get('/:id', requireAuth, async (req, res) => {
+  const order = await findOrder(req.params.id);
   if (!order) return res.status(404).json({ error: 'Order not found.' });
   return res.json({ order: parseOrder(order) });
 });
@@ -118,22 +71,17 @@ router.get('/:id', requireAuth, (req, res) => {
 // PATCH /cms/orders/:id/status
 // ---------------------------------------------------------------------------
 router.patch('/:id/status', requireAuth, async (req, res) => {
-  const order = findOrder(req.params.id);
+  const order = await findOrder(req.params.id);
   if (!order) return res.status(404).json({ error: 'Order not found.' });
 
   const { status } = req.body;
-  if (!status || !VALID_STATUSES.has(status)) {
-    return res.status(400).json({ error: `Status must be one of: ${[...VALID_STATUSES].join(', ')}.` });
-  }
+  if (!status || !VALID_STATUSES.has(status)) return res.status(400).json({ error: `Status must be one of: ${[...VALID_STATUSES].join(', ')}.` });
 
-  stmts.updateOrderStatus.run(status, order.id);
-  const updated = stmts.getOrderById.get(order.id);
+  await db.run("UPDATE orders SET status = ?, updated_at = datetime('now') WHERE id = ?", [status, order.id]);
+  const updated = await db.get('SELECT * FROM orders WHERE id = ?', [order.id]);
 
-  // Send customer notification for certain status transitions
   if (['cancelled', 'refunded'].includes(status) && updated.customer_email) {
-    sendOrderStatusEmail(updated, status).catch(err =>
-      console.error('[cms-orders] Status email error:', err.message)
-    );
+    sendOrderStatusEmail(updated, status).catch(err => console.error('[cms-orders] Status email:', err.message));
   }
 
   return res.json({ order: parseOrder(updated) });
@@ -141,70 +89,58 @@ router.patch('/:id/status', requireAuth, async (req, res) => {
 
 // ---------------------------------------------------------------------------
 // POST /cms/orders/:id/fulfill
-// Mark an order as fulfilled and send shipping notification to customer
 // ---------------------------------------------------------------------------
 router.post('/:id/fulfill', requireAuth, async (req, res) => {
-  const order = findOrder(req.params.id);
+  const order = await findOrder(req.params.id);
   if (!order) return res.status(404).json({ error: 'Order not found.' });
-
-  if (order.status === 'fulfilled') {
-    return res.status(400).json({ error: 'Order is already fulfilled.' });
-  }
+  if (order.status === 'fulfilled') return res.status(400).json({ error: 'Order is already fulfilled.' });
 
   const { tracking_number = '', carrier = '', fulfillment_notes = '', notify_customer = true } = req.body;
 
-  stmts.fulfillOrder.run(
-    String(tracking_number).slice(0, 200),
-    String(carrier).slice(0, 100),
-    String(fulfillment_notes).slice(0, 1000),
-    order.id
-  );
+  await db.run(`UPDATE orders SET status = 'fulfilled', tracking_number = ?, carrier = ?, fulfillment_notes = ?, fulfillment_date = datetime('now'), updated_at = datetime('now') WHERE id = ?`,
+    [String(tracking_number).slice(0, 200), String(carrier).slice(0, 100), String(fulfillment_notes).slice(0, 1000), order.id]);
 
-  const updated = stmts.getOrderById.get(order.id);
-
+  const updated = await db.get('SELECT * FROM orders WHERE id = ?', [order.id]);
   if (notify_customer && updated.customer_email) {
-    sendFulfillmentEmail(updated).catch(err =>
-      console.error('[cms-orders] Fulfillment email error:', err.message)
-    );
+    sendFulfillmentEmail(updated).catch(err => console.error('[cms-orders] Fulfillment email:', err.message));
   }
-
   return res.json({ order: parseOrder(updated) });
 });
 
 // ---------------------------------------------------------------------------
 // PATCH /cms/orders/:id/notes
 // ---------------------------------------------------------------------------
-router.patch('/:id/notes', requireAuth, (req, res) => {
-  const order = findOrder(req.params.id);
+router.patch('/:id/notes', requireAuth, async (req, res) => {
+  const order = await findOrder(req.params.id);
   if (!order) return res.status(404).json({ error: 'Order not found.' });
 
   const notes       = String(req.body.notes       ?? order.notes       ?? '').slice(0, 2000);
   const admin_notes = String(req.body.admin_notes ?? order.admin_notes ?? '').slice(0, 2000);
 
-  stmts.updateOrderNotes.run(notes, admin_notes, order.id);
-  return res.json({ order: parseOrder(stmts.getOrderById.get(order.id)) });
+  await db.run("UPDATE orders SET notes = ?, admin_notes = ?, updated_at = datetime('now') WHERE id = ?", [notes, admin_notes, order.id]);
+  return res.json({ order: parseOrder(await db.get('SELECT * FROM orders WHERE id = ?', [order.id])) });
 });
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-function findOrder(idParam) {
+async function findOrder(idParam) {
   const id = parseInt(idParam, 10);
   if (!Number.isInteger(id) || id <= 0) return null;
-  return stmts.getOrderById.get(id) || null;
+  return db.get('SELECT * FROM orders WHERE id = ?', [id]);
 }
 
 function parseOrder(order) {
+  if (!order) return null;
   return {
     ...order,
+    id: Number(order.id),
     shipping_address: tryParse(order.shipping_address, {}),
     items:            tryParse(order.items, []),
     shipping:         tryParse(order.shipping, {}),
   };
 }
 
-function tryParse(value, fallback) {
-  try { return JSON.parse(value); } catch { return fallback; }
-}
+function tryParse(v, fallback) { try { return JSON.parse(v); } catch { return fallback; } }
 
 module.exports = router;

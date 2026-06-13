@@ -794,9 +794,7 @@ app.post('/cms/orders/sync-stripe', requireAuth, requireRole('admin'), async (re
     return res.status(400).json({ error: 'Invalid session_id. Must start with cs_' });
   }
 
-  const { stmts: _stmts, getSetting, db: _db } = require('./db');
   const { sendOrderConfirmation, sendAdminOrderAlert } = require('./email');
-  const stripeWebhookRouter = require('./routes/stripe-webhook');
 
   // Check if already exists
   const existing = _stmts.getOrderByStripeId.get(session_id);

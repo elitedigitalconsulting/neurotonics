@@ -10,6 +10,7 @@
     "postinstall": "cd admin-ui && npm install --include=dev"
   },
   "dependencies": {
+    "@libsql/client": "^0.17.3",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.8.0",
     "cookie-parser": "^1.4.7",
