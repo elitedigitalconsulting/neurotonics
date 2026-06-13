@@ -194,4 +194,3 @@ Current product stock fields in `src/content/product.json`:
 
 - `stockPercent`: `70`
 - `unitsLeft`: `47`
-

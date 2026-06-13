@@ -189,4 +189,3 @@ test cards, wallet-payment checks, and browser-console cart tests.
 - SQLite data is local to the CMS server unless `DB_PATH` points at persistent
   storage. Safe CMS data is also backed up locally and optionally to a private
   GitHub data repository.
-

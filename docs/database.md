@@ -245,4 +245,3 @@ backup is unavailable, the server continues with local file-based backups.
   SQLite files.
 - If adding backup coverage, consider whether the table contains PII or
   short-lived credentials before including it.
-

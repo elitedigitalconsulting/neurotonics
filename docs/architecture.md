@@ -234,4 +234,3 @@ storefront on pushes to `main` and can trigger a Render deploy hook when
 - Backups intentionally exclude orders, content snapshots, and reset tokens.
 - Uploaded images should go through the CMS image route rather than arbitrary
   static file writes.
-

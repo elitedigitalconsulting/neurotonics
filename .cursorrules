@@ -86,4 +86,3 @@ npm run lint
   intentionally disabled.
 - Required runtime secrets include Stripe keys, CMS JWT secrets, email provider
   settings, and GitHub PAT settings. Never commit real values.
-
