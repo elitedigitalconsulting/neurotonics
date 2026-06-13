@@ -14,7 +14,7 @@
 const express = require('express');
 const { requireAuth } = require('../auth');
 const { db, stmts } = require('../db');
-const { writeBackup } = require('../backup');
+const { writeBackup, backupToGitHub } = require('../backup');
 
 const router = express.Router();
 
@@ -171,9 +171,11 @@ router.patch('/:id', requireAuth, (req, res) => {
     `notes updated: ${notes !== application.notes}`
   );
 
-  // Write a backup after every status or notes change so in-progress
-  // review work is preserved across restarts.
-  setImmediate(() => writeBackup());
+  // Dual backup after every status/notes change.
+  setImmediate(() => {
+    writeBackup();
+    backupToGitHub().catch((err) => console.error('[cms-stockist] GitHub backup failed:', err.message));
+  });
 
   return res.json({ application: updated });
 });

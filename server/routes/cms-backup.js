@@ -13,7 +13,8 @@
 const express = require('express');
 const fs      = require('fs');
 const { requireAuth, requireRole } = require('../auth');
-const { buildBackupPayload, restoreFromPayload, writeBackup, getBackupPath } = require('../backup');
+const { buildBackupPayload, restoreFromPayload, writeBackup, backupToGitHub, getBackupPath } = require('../backup');
+const { isDataRepoReady, getDataRepoCoords } = require('../github');
 
 const router = express.Router();
 
@@ -24,10 +25,21 @@ router.use(requireAuth, requireRole('admin'));
 // GET /cms/backup/status
 // ---------------------------------------------------------------------------
 router.get('/status', (_req, res) => {
-  const backupPath = getBackupPath();
+  const backupPath     = getBackupPath();
+  const dataRepoReady  = isDataRepoReady();
+  const dataRepoCoords = getDataRepoCoords();
+
+  const base = {
+    githubDataRepo: {
+      enabled:  !!(process.env.GITHUB_PAT),
+      ready:    dataRepoReady,
+      repo:     dataRepoCoords.full,
+      repoUrl:  `https://github.com/${dataRepoCoords.full}`,
+    },
+  };
 
   if (!fs.existsSync(backupPath)) {
-    return res.json({ exists: false, backupPath });
+    return res.json({ ...base, exists: false, backupPath });
   }
 
   try {
@@ -35,6 +47,7 @@ router.get('/status', (_req, res) => {
     const raw  = fs.readFileSync(backupPath, 'utf8');
     const data = JSON.parse(raw);
     return res.json({
+      ...base,
       exists:    true,
       backupPath,
       createdAt: data.created_at,
@@ -48,6 +61,20 @@ router.get('/status', (_req, res) => {
   } catch (err) {
     console.error('[cms-backup] status error:', err.message);
     return res.status(500).json({ error: 'Failed to read backup status.' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /cms/backup/push-to-github
+// Manually trigger an immediate GitHub backup (admin only).
+// ---------------------------------------------------------------------------
+router.post('/push-to-github', async (_req, res) => {
+  try {
+    await backupToGitHub();
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[cms-backup] manual GitHub push error:', err.message);
+    return res.status(500).json({ error: 'GitHub backup failed: ' + err.message });
   }
 });
 

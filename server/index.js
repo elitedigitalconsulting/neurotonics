@@ -39,11 +39,13 @@ const nodemailer = require('nodemailer');
 // ---------------------------------------------------------------------------
 const { db: _db, stmts: _stmts, logTableCounts } = require('./db');
 const { hashPassword } = require('./auth');
-const { restoreIfEmpty, schedulePeriodicBackup, writeBackup } = require('./backup');
+const { restoreIfEmpty, restoreFromGitHub, backupToGitHub, schedulePeriodicBackup, writeBackup } = require('./backup');
 
 // Restore from backup BEFORE creating the bootstrap admin so that existing
 // user records are re-imported first (avoiding duplicate-email conflicts).
-restoreIfEmpty();
+// GitHub restore runs first (survives redeploys), then falls back to the
+// local file-based backup (survives restarts).
+restoreFromGitHub().then(() => restoreIfEmpty()).catch(console.error);
 
 (async () => {
   const configEmail    = process.env.ADMIN_INITIAL_EMAIL    || 'admin@elitedigitalconsulting.com.au';
@@ -697,9 +699,12 @@ app.post('/stockist-application', async (req, res) => {
     );
     const saved = _stmts.getStockistApplicationById.get(result.lastInsertRowid);
     console.log(`[stockist] Application #${saved?.id} saved — ${safe.businessName} (${safe.email})`);
-    // Write a backup immediately so this application is never lost if the
-    // server restarts before the next periodic backup (every 5 minutes).
-    setImmediate(() => writeBackup());
+    // Dual backup: local file (survives restarts) + GitHub (survives redeploys).
+    // Both are fire-and-forget so they never block the response.
+    setImmediate(() => {
+      writeBackup();
+      backupToGitHub().catch((err) => console.error('[stockist] GitHub backup failed:', err.message));
+    });
   } catch (dbErr) {
     console.error('[stockist] DB save FAILED for', safe.businessName, ':', dbErr.message);
     return res.status(500).json({ error: 'Failed to save application. Please try again later.' });

@@ -36,6 +36,13 @@ const fs   = require('fs');
 const path = require('path');
 
 const { db } = require('./db');
+const {
+  ensureDataRepo,
+  getDataRepoFile,
+  putDataRepoFile,
+  isDataRepoReady,
+  getDataRepoCoords,
+} = require('./github');
 
 const BACKUP_VERSION = 1;
 
@@ -233,18 +240,95 @@ function restoreIfEmpty() {
 
 // ---------------------------------------------------------------------------
 // schedulePeriodicBackup(intervalMs)
-// Writes a backup every <intervalMs> milliseconds (default: every 5 minutes).
-// Call this after startup restore so the initial state is captured.
+// Writes a local backup every <intervalMs> ms AND a GitHub backup every 10x
+// that interval.  Call after startup restore so the initial state is captured.
 // ---------------------------------------------------------------------------
 function schedulePeriodicBackup(intervalMs = 5 * 60 * 1000) {
-  // Write an immediate backup so a fresh DB state is captured right away.
   writeBackup();
 
+  let githubTick = 0;
   setInterval(() => {
     writeBackup();
+    githubTick++;
+    // Also push to GitHub every 10 local backup cycles (~50 min default)
+    if (githubTick % 10 === 0) {
+      backupToGitHub().catch((err) => console.error('[backup] Periodic GitHub backup error:', err.message));
+    }
   }, intervalMs);
 
   console.log(`[backup] Periodic backup scheduled every ${Math.round(intervalMs / 1000)}s → ${getBackupPath()}`);
+}
+
+// ---------------------------------------------------------------------------
+// backupToGitHub()
+// Commits the current backup payload to the private data repository.
+// Fire-and-forget — call without awaiting.
+// ---------------------------------------------------------------------------
+async function backupToGitHub() {
+  if (!isDataRepoReady()) {
+    // Attempt a one-shot lazy init if the repo wasn't ready at startup
+    await ensureDataRepo();
+    if (!isDataRepoReady()) return;
+  }
+
+  const payload = buildBackupPayload();
+  const json    = JSON.stringify(payload, null, 2);
+
+  try {
+    await putDataRepoFile(
+      'backup/latest.json',
+      json,
+      `backup: ${payload.stockist_applications.length} applications, ` +
+      `${payload.users.length} users [skip ci]`,
+    );
+    console.log(
+      `[backup] GitHub backup written — ` +
+      `${payload.stockist_applications.length} applications, ` +
+      `${payload.users.length} users`
+    );
+  } catch (err) {
+    console.error('[backup] backupToGitHub failed:', err.message);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// restoreFromGitHub()
+// Fetches the backup from the private data repo and restores if the DB is
+// empty.  Called at startup; safe to call even before ensureDataRepo().
+// ---------------------------------------------------------------------------
+async function restoreFromGitHub() {
+  // Try to ensure the repo exists; if PAT is not set this is a no-op.
+  await ensureDataRepo();
+
+  if (!isDataRepoReady()) return;
+
+  const appCount  = db.prepare('SELECT COUNT(*) as n FROM stockist_applications').get().n;
+  const userCount = db.prepare('SELECT COUNT(*) as n FROM users').get().n;
+
+  if (appCount > 0 || userCount > 1) {
+    console.log(`[backup] DB has data (${appCount} applications, ${userCount} users) — skipping GitHub restore.`);
+    return;
+  }
+
+  console.log('[backup] DB empty — fetching backup from GitHub data repo…');
+
+  try {
+    const raw = await getDataRepoFile('backup/latest.json');
+    if (!raw) {
+      console.log('[backup] No backup file found in GitHub data repo (first run or new repo).');
+      return;
+    }
+    const payload = JSON.parse(raw);
+    const result  = restoreFromPayload(payload);
+    console.log(
+      `[backup] GitHub restore complete — ` +
+      `${result.restored} records restored, ${result.skipped} already existed.`
+    );
+    // Write a local backup so future restarts can use the file
+    writeBackup();
+  } catch (err) {
+    console.error('[backup] restoreFromGitHub failed:', err.message);
+  }
 }
 
 module.exports = {
@@ -252,6 +336,8 @@ module.exports = {
   buildBackupPayload,
   restoreFromPayload,
   restoreIfEmpty,
+  restoreFromGitHub,
+  backupToGitHub,
   schedulePeriodicBackup,
   getBackupPath,
 };

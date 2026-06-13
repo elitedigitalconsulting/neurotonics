@@ -146,6 +146,12 @@ interface BackupStatus {
   createdAt?: string;
   fileSizeBytes?: number;
   counts?: { stockist_applications: number; users: number; settings: number };
+  githubDataRepo?: {
+    enabled: boolean;
+    ready: boolean;
+    repo: string;
+    repoUrl: string;
+  };
 }
 
 function BackupRestoreSettings() {
@@ -171,6 +177,15 @@ function BackupRestoreSettings() {
       setRestoreStatus('✗ ' + err.message);
       toast(err.message, 'error');
     },
+  });
+
+  const githubPushMutation = useMutation<{ success: boolean }, Error>({
+    mutationFn: () => api.post('/cms/backup/push-to-github', {}),
+    onSuccess: () => {
+      statusQuery.refetch();
+      toast('Pushed to GitHub successfully');
+    },
+    onError: (err) => toast(err.message, 'error'),
   });
 
   if (user?.role !== 'admin') {
@@ -219,30 +234,47 @@ function BackupRestoreSettings() {
   return (
     <div className="space-y-5 max-w-2xl">
 
-      {/* Warning banner */}
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-        <div className="flex gap-3">
-          <AlertTriangle size={20} className="text-amber-500 shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-amber-800">Data persistence notice</p>
-            <p className="text-sm text-amber-700 mt-1">
-              The CMS database lives on Render's server. Auto-deploy is disabled, so the
-              database is preserved between CMS content saves. However, if you manually
-              redeploy the server from the Render dashboard, the database will be wiped.
-            </p>
-            <p className="text-sm text-amber-700 mt-2 font-medium">
-              Always download a backup before triggering a manual Render redeploy.
-              Re-upload the backup immediately after the new version starts up.
-            </p>
-            <p className="text-sm text-amber-600 mt-2">
-              For permanent persistence: add a Render Starter plan ($7/month) with a
-              persistent disk mounted at <code className="bg-amber-100 px-1 rounded">/data</code>
-              and set <code className="bg-amber-100 px-1 rounded">DB_BACKUP_DIR=/data</code>
-              in the Render environment.
-            </p>
+      {/* GitHub persistence status */}
+      {s?.githubDataRepo?.ready ? (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+          <div className="flex gap-3 items-start">
+            <CheckCircle size={20} className="text-green-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-green-800">GitHub auto-backup active</p>
+              <p className="text-sm text-green-700 mt-1">
+                All stockist applications are automatically backed up to a private GitHub
+                repository after every save. They will be restored automatically after any
+                Render redeploy — no manual steps required.
+              </p>
+              <a
+                href={s.githubDataRepo.repoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-green-600 hover:underline mt-1 inline-block"
+              >
+                {s.githubDataRepo.repo} →
+              </a>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <div className="flex gap-3">
+            <AlertTriangle size={20} className="text-amber-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-amber-800">GitHub auto-backup not yet active</p>
+              <p className="text-sm text-amber-700 mt-1">
+                The server is initialising the GitHub data repository. This happens automatically
+                on first startup — refresh this page in 30 seconds.
+              </p>
+              <p className="text-sm text-amber-600 mt-2">
+                If this persists, ensure <code className="bg-amber-100 px-1 rounded">GITHUB_PAT</code> is
+                set in Render with <code className="bg-amber-100 px-1 rounded">repo</code> scope.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Current backup status */}
       <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
@@ -273,19 +305,30 @@ function BackupRestoreSettings() {
         )}
       </section>
 
-      {/* Download */}
+      {/* GitHub push + Download */}
       <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-        <h2 className="text-sm font-semibold text-gray-700 mb-2">Download Backup</h2>
+        <h2 className="text-sm font-semibold text-gray-700 mb-2">Backup Actions</h2>
         <p className="text-xs text-gray-400 mb-4">
-          Downloads a JSON file containing all stockist applications, CMS users, and settings.
-          Orders are excluded to protect customer data. Save this file before any Render redeploy.
+          GitHub backup happens automatically after every save. Use these buttons if you
+          need to trigger one manually or want a local copy.
         </p>
-        <button
-          onClick={handleDownload}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
-        >
-          <Download size={16} /> Download Backup JSON
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={() => githubPushMutation.mutate()}
+            disabled={!s?.githubDataRepo?.ready || githubPushMutation.isPending}
+            className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg disabled:opacity-40"
+          >
+            {githubPushMutation.isPending
+              ? <><RefreshCw size={16} className="animate-spin" /> Pushing…</>
+              : <><Upload size={16} /> Push to GitHub now</>}
+          </button>
+          <button
+            onClick={handleDownload}
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
+          >
+            <Download size={16} /> Download JSON backup
+          </button>
+        </div>
       </section>
 
       {/* Restore */}
