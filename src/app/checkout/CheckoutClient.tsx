@@ -24,23 +24,26 @@ import { clearCheckoutData } from '@/lib/checkoutState';
 import { clearShipping } from '@/lib/shippingState';
 
 // ---------------------------------------------------------------------------
-// Stripe singleton — loaded dynamically using the publishable key returned
-// by the server alongside the PaymentIntent clientSecret. This avoids
-// relying on a build-time NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY env var.
+// Stripe singleton — key fetched at runtime from the Express server so no
+// build-time env var is needed. Falls back to NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+// for local dev convenience.
 // ---------------------------------------------------------------------------
 
-// Falls back to the build-time env var if present (local dev convenience).
 const BUILD_TIME_PK = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
 
-let stripePromise: ReturnType<typeof loadStripe> | null = null;
+// Module-level promise so loadStripe is only called once across all renders.
+let _stripePromise: ReturnType<typeof loadStripe> | null =
+  BUILD_TIME_PK ? loadStripe(BUILD_TIME_PK) : null;
 
-function getStripePromise(publishableKey: string): ReturnType<typeof loadStripe> {
-  const key = publishableKey || BUILD_TIME_PK;
-  if (!key) return Promise.resolve(null);
-  if (!stripePromise) {
-    stripePromise = loadStripe(key);
+function initStripe(key: string): ReturnType<typeof loadStripe> {
+  if (!_stripePromise && key) {
+    _stripePromise = loadStripe(key);
   }
-  return stripePromise;
+  return _stripePromise ?? Promise.resolve(null);
+}
+
+function getStripePromise(): ReturnType<typeof loadStripe> {
+  return _stripePromise ?? Promise.resolve(null);
 }
 
 const stripeAppearance = {
@@ -405,7 +408,7 @@ function ExpressCheckoutSection({
   onSuccess: () => void;
 }) {
   return (
-    <Elements stripe={getStripePromise('')}>
+    <Elements stripe={getStripePromise()}>
       <ExpressCheckoutInner subtotal={subtotal} apiUrl={apiUrl} onSuccess={onSuccess} />
     </Elements>
   );
@@ -709,13 +712,30 @@ function CheckoutContent({
   const [isLoading, setIsLoading] = useState(false);
   const [serverError, setServerError] = useState('');
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [publishableKey, setPublishableKey] = useState<string>('');
   const [paymentIntentFailed, setPaymentIntentFailed] = useState(false);
   const [successRedirect, setSuccessRedirect] = useState(false);
+  // stripeReady tracks when loadStripe has been called so Elements re-renders
+  const [, setStripeReady] = useState(false);
 
   // Derived
   const isAustralia = address.country === 'AU';
   const total = updateTotal(subtotal, selectedShipping?.fee ?? 0);
+
+  // Pre-fetch the Stripe publishable key from the server on mount so
+  // Stripe.js is fully loaded before the user selects a shipping method.
+  useEffect(() => {
+    if (_stripePromise || !apiUrl) return;
+    fetch(`${apiUrl}/stripe-config`)
+      .then((r) => r.json())
+      .then((data: { publishableKey?: string }) => {
+        if (data.publishableKey) {
+          initStripe(data.publishableKey);
+          setStripeReady(true);
+        }
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiUrl]);
 
   // Restore saved data on mount
   useEffect(() => {
@@ -827,8 +847,9 @@ function CheckoutContent({
       .then((data: { clientSecret?: string; publishableKey?: string }) => {
         if (!cancelled) {
           if (data.clientSecret) {
+            // Also initialise Stripe if not already done (key from PaymentIntent response)
+            if (data.publishableKey) initStripe(data.publishableKey);
             setClientSecret(data.clientSecret);
-            if (data.publishableKey) setPublishableKey(data.publishableKey);
           } else {
             setPaymentIntentFailed(true);
           }
@@ -1294,7 +1315,7 @@ function CheckoutContent({
 
             {clientSecret ? (
               <Elements
-                stripe={getStripePromise(publishableKey)}
+                stripe={getStripePromise()}
                 options={{ clientSecret, appearance: stripeAppearance }}
               >
                 <PaymentSectionInner

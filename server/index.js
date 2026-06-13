@@ -709,6 +709,12 @@ app.get('/health', (_req, res) => {
 
 // Stripe connectivity check — confirms the secret key is valid.
 // Returns only safe diagnostic info (no key material).
+// Returns the Stripe publishable key so the frontend can initialise Stripe.js
+// at runtime without a build-time env var.
+app.get('/stripe-config', (_req, res) => {
+  res.json({ publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || '' });
+});
+
 app.get('/stripe-health', async (_req, res) => {
   if (!stripe) return res.status(503).json({ stripe: 'unconfigured', message: 'STRIPE_SECRET_KEY not set.' });
   try {
