@@ -1,36 +1,30 @@
-# Neurotonics repository rules
+# Cursor rules for Neurotonics
 
-This repository contains the Neurotonics ecommerce storefront, checkout/CMS
-backend, and admin dashboard. Before making changes, read the relevant files in
-this repo and follow the patterns already in use.
+Start with these files before broad exploration:
+- `docs/project-context.md`
+- `docs/architecture.md`
+- `docs/database.md`
+- `docs/current-state.md`
+- the specific source files related to the task
 
-## Project shape
+Avoid full-repo scans unless the user explicitly asks or the task cannot be
+scoped another way. Prefer narrow `rg`, `Glob`, and direct file reads. Do not
+inspect generated folders, dependency folders, build output, runtime uploads, or
+SQLite data unless debugging that exact artifact.
 
-- Storefront: `src/` is a Next.js 16 App Router application with React 19,
-  TypeScript, Tailwind CSS 4, and static export configured in `next.config.ts`.
-- Backend: `server/` is a CommonJS Express 4 application that creates Stripe
-  checkout/payment flows, serves the CMS API, handles webhooks, sends email, and
-  serves the built admin SPA.
-- Admin UI: `server/admin-ui/` is a Vite + React + TypeScript app. Its built
-  output is committed under `server/public/admin/`.
-- Content source: storefront copy and product/shipping data live in
-  `src/content/*.json`; CMS routes can commit changes to these files and trigger
-  a GitHub Pages rebuild.
-- Runtime data: CMS data uses SQLite via `server/db.js`. Do not commit
-  `server/data/`, local SQLite files, backups, or secrets.
+## Stack
 
-## Next.js 16 rule
+- Storefront: Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4,
+  static export to GitHub Pages at `/neurotonics`.
+- Server: Node 20, Express 4, CommonJS, Stripe, `better-sqlite3`, JWT auth,
+  email, CMS REST API.
+- Admin: Vite React app in `server/admin-ui/`, built into
+  `server/public/admin/`.
+- No Prisma schema is present. The actual DB schema is in `server/db.js`.
 
-This is not the legacy Next.js API surface. Before editing Next.js app code,
-read the relevant guide in `node_modules/next/dist/docs/`. If dependencies are
-not installed, run `npm ci` first. Pay attention to static export constraints:
-the production storefront is built to `out/` and deployed to GitHub Pages with
-`basePath: "/neurotonics"` and unoptimized images.
-
-## Commands
+## Local commands
 
 Root storefront:
-
 ```bash
 npm ci
 npm run dev
@@ -39,8 +33,7 @@ npm run lint
 npm test
 ```
 
-Backend:
-
+CMS server:
 ```bash
 cd server
 npm ci
@@ -50,7 +43,6 @@ npm run build:admin
 ```
 
 Admin UI source:
-
 ```bash
 cd server/admin-ui
 npm ci
@@ -59,30 +51,19 @@ npm run build
 npm run lint
 ```
 
-## Implementation guidance
+## Editing rules
 
-- Prefer existing helpers: cart state in `src/lib/cart.tsx`, shipping logic in
-  `src/lib/shipping.ts`, checkout persistence in `src/lib/checkoutState.ts` and
-  `src/lib/shippingState.ts`, backend DB helpers in `server/db.js`, and auth
-  middleware in `server/auth.js`.
-- Keep product pricing validation server-side. The Express server has an
-  authorised `PRODUCT_CATALOG`; update it when product prices change.
-- Preserve checkout security controls: validate carts, sanitize redirects,
-  avoid trusting client-supplied totals, and keep Stripe secret keys server-side.
-- Stripe webhooks must be mounted before `express.json()` because signature
-  verification requires the raw body.
-- CMS routes should require `requireAuth`; admin-only routes should also use
+- Read relevant local code first; keep changes scoped.
+- For Next.js changes, remember this repo uses Next 16. If dependencies are
+  installed and framework behavior is uncertain, consult
+  `node_modules/next/dist/docs/`.
+- Static export constraints matter: avoid server-only Next features for public
+  pages unless deployment changes too.
+- Keep Stripe secrets server-side. Do not trust client totals for payments.
+- Stripe webhooks must stay mounted before `express.json()`.
+- CMS routes should use `requireAuth`; admin-only routes should use
   `requireRole("admin")`.
-- Do not manually edit generated admin assets unless intentionally updating the
-  built admin bundle. Prefer editing `server/admin-ui/src/` and rebuilding.
-- Avoid unrelated refactors. Keep changes scoped and add or update tests when
-  touching cart, shipping, checkout validation, API routes, auth, or DB logic.
-
-## Environment and deployment
-
-- Storefront deploys to GitHub Pages through `.github/workflows/deploy.yml`.
-- CMS content rebuilds are triggered by `.github/workflows/cms-rebuild.yml`.
-- The CMS server is deployed on Render using `render.yaml`; `autoDeploy` is
-  intentionally disabled.
-- Required runtime secrets include Stripe keys, CMS JWT secrets, email provider
-  settings, and GitHub PAT settings. Never commit real values.
+- Prefer source edits in `server/admin-ui/src/`; do not hand-edit built admin
+  assets unless intentionally updating generated output.
+- Never commit `.env*` secrets, `server/data/`, SQLite files, backups, uploads,
+  `.next/`, `out/`, `dist/`, `build/`, or `node_modules/`.
