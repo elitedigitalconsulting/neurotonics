@@ -324,12 +324,14 @@ app.post('/create-checkout-session', async (req, res) => {
   }));
 
   // Add shipping as a separate line item when provided
+  let shippingFeeCents = 0;
   if (
     shipping &&
     typeof shipping.fee === 'number' &&
     Number.isFinite(shipping.fee) &&
     shipping.fee > 0
   ) {
+    shippingFeeCents = Math.round(shipping.fee * 100);
     const shippingLabel =
       typeof shipping.name === 'string' && shipping.name.length <= 100
         ? shipping.name
@@ -349,7 +351,7 @@ app.post('/create-checkout-session', async (req, res) => {
           name: `Delivery — ${shippingLabel}`,
           ...(estimatedDays && { description: estimatedDays }),
         },
-        unit_amount: Math.round(shipping.fee * 100),
+        unit_amount: shippingFeeCents,
       },
       quantity: 1,
     });
@@ -372,6 +374,14 @@ app.post('/create-checkout-session', async (req, res) => {
       }
     : {};
 
+  const subtotalCents = items.reduce((sum, item) => sum + Math.round(item.price * 100) * item.quantity, 0);
+  const itemSummary = JSON.stringify(items.map((i) => `${i.name} x${i.quantity}`));
+  const itemDetails = JSON.stringify(items.map((i) => ({
+    name: i.name,
+    qty: i.quantity,
+    priceCents: Math.round(i.price * 100),
+  })));
+
   // --- Create Stripe Checkout session ---
   try {
     const session = await stripe.checkout.sessions.create({
@@ -382,14 +392,15 @@ app.post('/create-checkout-session', async (req, res) => {
       // Pre-fill customer email so they don't have to retype it on Stripe's page
       ...(safeEmail && { customer_email: safeEmail }),
       // Stripe Checkout automatically surfaces Apple Pay on Safari/iOS and
-      // Google Pay on Chrome/Android.  'automatic_payment_methods' is the
-      // recommended way to enable all eligible payment methods.
-      payment_method_types: undefined, // let Stripe decide via dashboard settings
+      // Google Pay on Chrome/Android via dashboard payment-method settings.
       // Collect customer email for order confirmation
       customer_creation: 'always',
       // Pass metadata for reference in the Stripe dashboard
       metadata: {
-        items: JSON.stringify(items.map((i) => `${i.name} x${i.quantity}`)),
+        items: itemSummary,
+        ...(itemDetails.length <= 500 && { itemsJson: itemDetails }),
+        subtotal: String(subtotalCents),
+        shippingFee: String(shippingFeeCents),
         shippingZone: shipping?.zone || 'none',
         shippingOption: shipping?.name || 'none',
         ...(safePhone && { customerPhone: safePhone }),
