@@ -19,19 +19,13 @@ services:
     startCommand: node index.js
     healthCheckPath: /health
 
-    # Persistent disk — preserves the SQLite database across deployments.
-    # Without this, every deploy wipes the database (orders, admin users, etc.)
-    disk:
-      name: neurotonics-data
-      mountPath: /data
-      sizeGB: 1
-
     # CRITICAL: autoDeploy MUST stay false.
     #
     # The CMS content-save workflow commits JSON changes to the main branch
     # (with [skip ci] to skip GitHub Actions). Without autoDeploy: false,
-    # Render would redeploy on every CMS save, wiping the SQLite database
-    # and deleting all stockist applications, orders, and users.
+    # Render would redeploy on every CMS save. Free-tier services do not support
+    # Blueprint disks, so the SQLite database is ephemeral and safe CMS tables
+    # are restored from the GitHub backup on startup.
     #
     # Server code deploys are triggered only via the Render dashboard
     # "Manual Deploy" button, which gives the admin time to download a
@@ -139,22 +133,6 @@ services:
 
       - key: GITHUB_REPO
         value: neurotonics
-
-      # -----------------------------------------------------------------------
-      # Persistent storage paths — both point to the persistent disk so the
-      # SQLite database AND the JSON backup survive every redeploy.
-      # -----------------------------------------------------------------------
-
-      # The live SQLite database file lives on the persistent disk.
-      # NEVER change this back to the default (server/data/) or the data
-      # will be wiped on the next deploy.
-      - key: DB_PATH
-        value: /data/neurotonics.db
-
-      # Backup files also go on the persistent disk so the GitHub auto-restore
-      # has a local copy as a faster fallback.
-      - key: DB_BACKUP_DIR
-        value: /data
 
       # -----------------------------------------------------------------------
       # Runtime
