@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import CustomSelect from '@/components/ui/CustomSelect';
 
 type FormState = 'idle' | 'submitting' | 'success' | 'error';
@@ -72,7 +72,7 @@ const EMPTY: FormFields = {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const WEB3FORMS_KEY = process.env.NEXT_PUBLIC_WEB3FORMS_KEY;
-const SUBMIT_TIMEOUT_MS = 15_000;
+const SUBMIT_TIMEOUT_MS = 5_000;
 
 async function fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
   const controller = new AbortController();
@@ -174,6 +174,14 @@ export default function StockistForm() {
   const [formState, setFormState] = useState<FormState>('idle');
   const [serverError, setServerError] = useState('');
 
+  // Fire a background ping to wake the API server as soon as the form is visible
+  // so it isn't cold-starting when the user actually hits submit.
+  useEffect(() => {
+    if (API_URL) {
+      fetch(`${API_URL}/health`).catch(() => {});
+    }
+  }, []);
+
   function updateField(name: string, value: string) {
     setFields((prev) => ({ ...prev, [name]: value }));
     if (errors[name as keyof FieldErrors]) {
@@ -250,38 +258,39 @@ export default function StockistForm() {
     try {
       let res: Response | null = null;
 
-      if (API_URL) {
+      // Web3Forms is the fast primary path (~1s, no cold-start penalty).
+      if (WEB3FORMS_KEY) {
         try {
-          res = await fetchWithTimeout(`${API_URL}/stockist-application`, {
+          res = await fetchWithTimeout('https://api.web3forms.com/submit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              fullName: fields.fullName,
-              businessName: fields.businessName,
-              abn: fields.abn,
-              email: fields.email,
-              phone: fields.phone,
-              businessAddress,
-              industry: fields.industry,
-              businessWebsite: fields.businessWebsite,
-              message: fields.message,
-            }),
+            body: JSON.stringify(web3formsPayload),
           });
         } catch {
-          // API request failed (cold-start timeout, network error, server down).
-          // Fall through to Web3Forms if available, otherwise re-throw below.
-          if (!WEB3FORMS_KEY) {
-            throw new Error('Unable to reach the submission server. Please try again in a moment, or contact us directly at admin@elitedigitalconsulting.com.au.');
+          // Fall through to the API backend if Web3Forms fails.
+          if (!API_URL) {
+            throw new Error('Unable to submit. Please check your connection and try again, or contact us directly at admin@elitedigitalconsulting.com.au.');
           }
         }
       }
 
-      // Use Web3Forms if the API request was skipped or failed.
-      if (!res && WEB3FORMS_KEY) {
-        res = await fetchWithTimeout('https://api.web3forms.com/submit', {
+      // Use the API backend when Web3Forms is not configured or failed.
+      // The server is pre-warmed on mount so it should respond quickly.
+      if (!res && API_URL) {
+        res = await fetchWithTimeout(`${API_URL}/stockist-application`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(web3formsPayload),
+          body: JSON.stringify({
+            fullName: fields.fullName,
+            businessName: fields.businessName,
+            abn: fields.abn,
+            email: fields.email,
+            phone: fields.phone,
+            businessAddress,
+            industry: fields.industry,
+            businessWebsite: fields.businessWebsite,
+            message: fields.message,
+          }),
         });
       }
 
