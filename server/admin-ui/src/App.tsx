@@ -14,6 +14,7 @@ import ContentPage   from './pages/ContentPage';
 import SettingsPage  from './pages/SettingsPage';
 import MediaPage     from './pages/MediaPage';
 import UsersPage     from './pages/UsersPage';
+import StockistPage  from './pages/StockistPage';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 10_000 } },
@@ -53,6 +54,7 @@ function AppShell() {
           <Route path="/content"   element={<ContentPage />} />
           <Route path="/media"     element={<MediaPage />} />
           <Route path="/settings"  element={<SettingsPage />} />
+          <Route path="/stockist"  element={<StockistPage />} />
           {user.role === 'admin' && <Route path="/users" element={<UsersPage />} />}
           <Route path="*"          element={<Navigate to="/dashboard" replace />} />
         </Routes>

@@ -32,3 +32,14 @@ export function statusBadge(status: string) {
   const { label, variant } = map[status] ?? { label: status, variant: 'gray' };
   return <Badge variant={variant}>{label}</Badge>;
 }
+
+export function stockistStatusBadge(status: string) {
+  const map: Record<string, { label: string; variant: Props['variant'] }> = {
+    new:       { label: 'New',       variant: 'blue'   },
+    reviewing: { label: 'Reviewing', variant: 'yellow' },
+    approved:  { label: 'Approved',  variant: 'green'  },
+    rejected:  { label: 'Rejected',  variant: 'red'    },
+  };
+  const { label, variant } = map[status] ?? { label: status, variant: 'gray' };
+  return <Badge variant={variant}>{label}</Badge>;
+}

@@ -132,17 +132,19 @@ const cmsOrdersRouter    = require('./routes/cms-orders');
 const cmsSettingsRouter  = require('./routes/cms-settings');
 const cmsUsersRouter     = require('./routes/cms-users');
 const cmsImagesRouter    = require('./routes/cms-images');
+const cmsStockistRouter  = require('./routes/cms-stockist');
 
 // Apply general rate limit to all CMS API routes
 app.use('/cms', cmsRateLimiter);
 
-app.use('/cms/auth',     authRouter);
-app.use('/cms/content',  cmsContentRouter);
-app.use('/cms/products', cmsProductsRouter);
-app.use('/cms/orders',   cmsOrdersRouter);
-app.use('/cms/settings', cmsSettingsRouter);
-app.use('/cms/users',    cmsUsersRouter);
-app.use('/cms/images',   cmsImagesRouter);
+app.use('/cms/auth',                  authRouter);
+app.use('/cms/content',              cmsContentRouter);
+app.use('/cms/products',             cmsProductsRouter);
+app.use('/cms/orders',               cmsOrdersRouter);
+app.use('/cms/settings',             cmsSettingsRouter);
+app.use('/cms/users',                cmsUsersRouter);
+app.use('/cms/images',               cmsImagesRouter);
+app.use('/cms/stockist-applications', cmsStockistRouter);
 
 // Send anyone opening the Render service URL directly to the CMS login page.
 app.get('/', (_req, res) => {
@@ -674,9 +676,44 @@ app.post('/stockist-application', async (req, res) => {
       html: htmlBody,
     });
 
+    // Persist to database regardless of email outcome so no submission is lost.
+    try {
+      stmts.createStockistApplication.run(
+        safe.fullName,
+        safe.businessName,
+        safe.abn,
+        safe.email,
+        safe.phone,
+        safe.businessAddress,
+        safe.industry,
+        safe.businessWebsite,
+        safe.message,
+      );
+    } catch (dbErr) {
+      console.error('Stockist application DB save failed:', dbErr);
+    }
+
     return res.json({ success: true });
   } catch (err) {
     console.error('Stockist application email failed:', err);
+
+    // Still save to DB even if the email failed so the application isn't lost.
+    try {
+      stmts.createStockistApplication.run(
+        safe.fullName,
+        safe.businessName,
+        safe.abn,
+        safe.email,
+        safe.phone,
+        safe.businessAddress,
+        safe.industry,
+        safe.businessWebsite,
+        safe.message,
+      );
+    } catch (dbErr) {
+      console.error('Stockist application DB save failed:', dbErr);
+    }
+
     return res.status(500).json({ error: 'Failed to send application. Please try again later.' });
   }
 });

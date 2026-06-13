@@ -150,6 +150,23 @@ export interface Product {
   faq: Array<{ question: string; answer: string }>;
 }
 
+export interface StockistApplication {
+  id: number;
+  full_name: string;
+  business_name: string;
+  abn: string;
+  email: string;
+  phone: string;
+  business_address: string;
+  industry: string;
+  business_website: string;
+  message: string;
+  status: 'new' | 'reviewing' | 'approved' | 'rejected';
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Settings {
   notification_email: string;
   admin_notification_email: string;

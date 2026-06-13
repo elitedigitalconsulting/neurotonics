@@ -74,6 +74,24 @@ db.exec(`
     expires_at TEXT    NOT NULL,
     created_at TEXT    NOT NULL DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS stockist_applications (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    full_name        TEXT    NOT NULL DEFAULT '',
+    business_name    TEXT    NOT NULL DEFAULT '',
+    abn              TEXT    NOT NULL DEFAULT '',
+    email            TEXT    NOT NULL DEFAULT '',
+    phone            TEXT    NOT NULL DEFAULT '',
+    business_address TEXT    NOT NULL DEFAULT '',
+    industry         TEXT    NOT NULL DEFAULT '',
+    business_website TEXT    NOT NULL DEFAULT '',
+    message          TEXT    NOT NULL DEFAULT '',
+    status           TEXT    NOT NULL DEFAULT 'new'
+                             CHECK(status IN ('new','reviewing','approved','rejected')),
+    notes            TEXT    NOT NULL DEFAULT '',
+    created_at       TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at       TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
 `);
 
 // ---------------------------------------------------------------------------
@@ -203,6 +221,36 @@ const stmts = {
   ),
   deleteResetTokensByUser: db.prepare(
     `DELETE FROM password_reset_tokens WHERE user_id = ?`
+  ),
+
+  // stockist applications
+  createStockistApplication: db.prepare(`
+    INSERT INTO stockist_applications
+      (full_name, business_name, abn, email, phone, business_address, industry, business_website, message)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `),
+  getStockistApplicationById: db.prepare(
+    'SELECT * FROM stockist_applications WHERE id = ?'
+  ),
+  listStockistApplications: db.prepare(`
+    SELECT * FROM stockist_applications ORDER BY created_at DESC LIMIT ? OFFSET ?
+  `),
+  countStockistApplications: db.prepare(
+    'SELECT COUNT(*) as count FROM stockist_applications'
+  ),
+  listStockistApplicationsByStatus: db.prepare(`
+    SELECT * FROM stockist_applications WHERE status = ? ORDER BY created_at DESC LIMIT ? OFFSET ?
+  `),
+  countStockistApplicationsByStatus: db.prepare(
+    'SELECT COUNT(*) as count FROM stockist_applications WHERE status = ?'
+  ),
+  updateStockistApplication: db.prepare(`
+    UPDATE stockist_applications
+    SET status = ?, notes = ?, updated_at = datetime('now')
+    WHERE id = ?
+  `),
+  getAllStockistApplications: db.prepare(
+    'SELECT * FROM stockist_applications ORDER BY created_at DESC'
   ),
 };
 
