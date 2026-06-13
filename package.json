@@ -9,7 +9,7 @@
     "lint": "eslint",
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "postinstall": "node -e 'var fs=require(\"fs\");if(fs.existsSync(\".env.local\")===false&&fs.existsSync(\".env.example\")){fs.copyFileSync(\".env.example\",\".env.local\");console.log(\"Created .env.local from .env.example — update it with your Stripe keys\")}'"
+    "postinstall": "node -e 'if(!process.env.CI){var fs=require(\"fs\");if(!fs.existsSync(\".env.local\")&&fs.existsSync(\".env.example\")){fs.copyFileSync(\".env.example\",\".env.local\");console.log(\"Created .env.local from .env.example — update it with your keys\")}}'"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.1.0",
