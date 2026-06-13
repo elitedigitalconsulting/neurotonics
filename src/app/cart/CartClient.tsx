@@ -6,6 +6,11 @@ import Image from 'next/image';
 import { useCart } from '@/lib/cart';
 import { getShippingOptions, getDefaultShippingOption, type ShippingOption } from '@/lib/shipping';
 import { withBasePath } from '@/lib/basePath';
+import productData from '@/content/product.json';
+
+const STOCK_UNITS = productData.unitsLeft ?? 100;
+const IS_IN_STOCK = (productData as { inStock?: boolean }).inStock !== false && STOCK_UNITS > 0;
+const LOW_STOCK_THRESHOLD = 10;
 
 const COUNTRIES = [
   { code: 'AU', name: 'Australia' },
@@ -388,16 +393,32 @@ export default function CartClient() {
                 </div>
               </div>
 
+              {/* Inventory warnings */}
+              {!IS_IN_STOCK && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 text-center font-medium">
+                  ⚠️ This product is currently out of stock. Orders cannot be placed at this time.
+                </div>
+              )}
+              {IS_IN_STOCK && STOCK_UNITS <= LOW_STOCK_THRESHOLD && (
+                <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 text-center">
+                  🔥 Only <strong>{STOCK_UNITS} units</strong> left in stock — order soon!
+                </div>
+              )}
+
               {!locationEntered ? (
-                <div className="mt-6 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 text-center">
+                <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 text-center">
                   Please enter your delivery location before proceeding to checkout.
                 </div>
+              ) : !IS_IN_STOCK ? (
+                <button disabled className="block w-full mt-4 py-3.5 bg-gray-300 text-gray-500 font-semibold rounded-xl cursor-not-allowed text-center">
+                  Out of Stock
+                </button>
               ) : (
                 <Link
                   href={`/checkout?postcode=${encodeURIComponent(postcode)}&country=${encodeURIComponent(country)}&shipping=${encodeURIComponent(selectedOption?.id ?? '')}`}
-                  className="block w-full mt-6 py-3.5 bg-brand-primary hover:bg-brand-primary-dark text-white font-semibold rounded-xl transition-all duration-300 text-center"
+                  className="block w-full mt-4 py-3.5 bg-brand-primary hover:bg-brand-primary-dark text-white font-semibold rounded-xl transition-all duration-300 text-center"
                 >
-                  Proceed to Checkout
+                  Proceed to Checkout →
                 </Link>
               )}
 

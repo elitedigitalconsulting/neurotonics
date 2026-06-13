@@ -109,6 +109,7 @@ export interface User {
 
 export interface Order {
   id: number;
+  order_number: string;
   stripe_session_id: string;
   customer_name: string;
   customer_email: string;
@@ -126,7 +127,14 @@ export interface Order {
   shipping: { zone?: string; name?: string; fee?: number };
   subtotal: number;
   total: number;
-  status: 'pending' | 'processing' | 'fulfilled' | 'refunded' | 'failed';
+  status: 'pending' | 'processing' | 'fulfilled' | 'refunded' | 'failed' | 'cancelled';
+  payment_status: 'pending' | 'paid' | 'failed' | 'refunded';
+  notes: string;
+  admin_notes: string;
+  tracking_number: string;
+  carrier: string;
+  fulfillment_date: string | null;
+  fulfillment_notes: string;
   created_at: string;
   updated_at: string;
 }

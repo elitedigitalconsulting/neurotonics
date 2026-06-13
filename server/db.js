@@ -37,6 +37,7 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS orders (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_number      TEXT    UNIQUE,
     stripe_session_id TEXT    UNIQUE,
     customer_name     TEXT    NOT NULL DEFAULT '',
     customer_email    TEXT    NOT NULL DEFAULT '',
@@ -47,9 +48,16 @@ db.exec(`
     subtotal          REAL    NOT NULL DEFAULT 0,
     total             REAL    NOT NULL DEFAULT 0,
     status            TEXT    NOT NULL DEFAULT 'pending'
-                              CHECK(status IN ('pending','processing','fulfilled','refunded','failed')),
+                              CHECK(status IN ('pending','processing','fulfilled','refunded','failed','cancelled')),
+    payment_status    TEXT    NOT NULL DEFAULT 'pending'
+                              CHECK(payment_status IN ('pending','paid','failed','refunded')),
     notification_email TEXT   NOT NULL DEFAULT '',
     notes             TEXT    NOT NULL DEFAULT '',
+    admin_notes       TEXT    NOT NULL DEFAULT '',
+    tracking_number   TEXT    NOT NULL DEFAULT '',
+    carrier           TEXT    NOT NULL DEFAULT '',
+    fulfillment_date  TEXT,
+    fulfillment_notes TEXT    NOT NULL DEFAULT '',
     created_at        TEXT    NOT NULL DEFAULT (datetime('now')),
     updated_at        TEXT    NOT NULL DEFAULT (datetime('now'))
   );
@@ -95,24 +103,45 @@ db.exec(`
 `);
 
 // ---------------------------------------------------------------------------
+// Migrations — safely add columns to existing tables
+// ---------------------------------------------------------------------------
+const existingCols = db.prepare("PRAGMA table_info(orders)").all().map(r => r.name);
+const addIfMissing = (col, def) => {
+  if (!existingCols.includes(col)) {
+    db.exec(`ALTER TABLE orders ADD COLUMN ${col} ${def}`);
+  }
+};
+addIfMissing('order_number',      "TEXT");
+addIfMissing('payment_status',    "TEXT NOT NULL DEFAULT 'pending'");
+addIfMissing('admin_notes',       "TEXT NOT NULL DEFAULT ''");
+addIfMissing('tracking_number',   "TEXT NOT NULL DEFAULT ''");
+addIfMissing('carrier',           "TEXT NOT NULL DEFAULT ''");
+addIfMissing('fulfillment_date',  "TEXT");
+addIfMissing('fulfillment_notes', "TEXT NOT NULL DEFAULT ''");
+
+// Ensure unique index on order_number if not already there
+db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_order_number ON orders(order_number) WHERE order_number IS NOT NULL`);
+
+// ---------------------------------------------------------------------------
 // Default settings (only inserted if not already present)
 // ---------------------------------------------------------------------------
 const DEFAULT_ORDER_TEMPLATE = `
 <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a202c;">
   <div style="background:#1a2e4a;padding:24px;border-radius:8px 8px 0 0;">
     <h1 style="color:#fff;margin:0;font-size:22px;">Order Confirmed 🎉</h1>
+    <p style="color:#94a3b8;margin:6px 0 0;font-size:14px;">{{orderNumber}}</p>
   </div>
   <div style="background:#f7fafc;padding:24px;border-radius:0 0 8px 8px;">
     <p>Hi {{customerName}},</p>
-    <p>Thank you for your order! We're getting it ready for you.</p>
+    <p>Thank you for your order! We're preparing it now and will send you tracking information once it ships.</p>
     <h2 style="font-size:16px;margin-bottom:8px;">Order Summary</h2>
     {{itemsTable}}
     <p><strong>Shipping:</strong> {{shippingLabel}} — {{shippingFee}}</p>
-    <p><strong>Total: {{total}}</strong></p>
+    <p style="font-size:18px;font-weight:bold;margin-top:12px;">Total: {{total}}</p>
     <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;">
     <p style="font-size:12px;color:#718096;">
-      Neurotonics · support@neurotonics.com.au · 1300 NEURO<br>
-      Always read the label and follow the directions for use.
+      Questions? Email us at <a href="mailto:support@neurotonics.com.au" style="color:#1a2e4a;">support@neurotonics.com.au</a><br>
+      Neurotonics — Always read the label and follow the directions for use.
     </p>
   </div>
 </div>
@@ -141,6 +170,7 @@ const DEFAULT_SETTINGS = {
   promo_banner_text:            'Free shipping on orders over $99 | ARTG Listed | Made in Australia',
   order_confirmation_template:  DEFAULT_ORDER_TEMPLATE,
   admin_alert_template:         DEFAULT_ADMIN_ALERT_TEMPLATE,
+  order_number_sequence:        '1000',
 };
 
 const insertSetting = db.prepare(
@@ -181,15 +211,25 @@ const stmts = {
   // orders
   createOrder: db.prepare(`
     INSERT INTO orders
-      (stripe_session_id, customer_name, customer_email, customer_phone,
-       shipping_address, items, shipping, subtotal, total, notification_email)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (order_number, stripe_session_id, customer_name, customer_email, customer_phone,
+       shipping_address, items, shipping, subtotal, total, status, payment_status, notification_email)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `),
   getOrderById:          db.prepare('SELECT * FROM orders WHERE id = ?'),
   getOrderByStripeId:    db.prepare('SELECT * FROM orders WHERE stripe_session_id = ?'),
+  getOrderByNumber:      db.prepare('SELECT * FROM orders WHERE order_number = ?'),
   updateOrderStatus:     db.prepare(
     `UPDATE orders SET status = ?, updated_at = datetime('now') WHERE id = ?`
   ),
+  fulfillOrder: db.prepare(`
+    UPDATE orders
+    SET status = 'fulfilled', tracking_number = ?, carrier = ?,
+        fulfillment_notes = ?, fulfillment_date = datetime('now'), updated_at = datetime('now')
+    WHERE id = ?
+  `),
+  updateOrderNotes: db.prepare(`
+    UPDATE orders SET notes = ?, admin_notes = ?, updated_at = datetime('now') WHERE id = ?
+  `),
   listOrders: db.prepare(`
     SELECT * FROM orders ORDER BY created_at DESC LIMIT ? OFFSET ?
   `),

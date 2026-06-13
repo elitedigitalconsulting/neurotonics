@@ -179,30 +179,51 @@ function SuccessView() {
   useEffect(() => {
     clearCart();
     import('@/lib/shippingState').then(({ clearShipping }) => clearShipping());
-    import('@/lib/checkoutState').then(({ clearCheckoutData }) =>
-      clearCheckoutData(),
-    );
+    import('@/lib/checkoutState').then(({ clearCheckoutData }) => clearCheckoutData());
   }, [clearCart]);
 
   return (
-    <main className="bg-white min-h-screen flex items-center justify-center">
-      <div className="text-center px-4 max-w-lg">
-        <div className="w-20 h-20 mx-auto rounded-full bg-brand-primary flex items-center justify-center mb-6">
-          <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    <main className="bg-gray-50 min-h-screen flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 max-w-md w-full text-center">
+        <div className="w-20 h-20 mx-auto rounded-full bg-green-100 flex items-center justify-center mb-6">
+          <svg className="w-10 h-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">Order Confirmed!</h1>
-        <p className="text-gray-600 mb-8">
-          Thank you for your purchase! Your Brain Boost 1000 is on its way.
-          You&apos;ll receive a confirmation email shortly.
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Order Confirmed!</h1>
+        <p className="text-gray-500 text-sm mb-6">
+          Thank you for your order. A confirmation email has been sent to you with your order details.
         </p>
-        <Link
-          href="/"
-          className="inline-flex items-center px-6 py-3 bg-brand-primary hover:bg-brand-primary-dark text-white font-semibold rounded-xl transition-all duration-300"
-        >
-          Return Home
-        </Link>
+        <div className="bg-gray-50 rounded-xl p-4 mb-6 text-sm text-left space-y-2">
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            <span className="text-gray-700">Confirmation email sent to your inbox</span>
+          </div>
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+            <span className="text-gray-700">Your order is being prepared for dispatch</span>
+          </div>
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-purple-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-gray-700">Tracking info will be emailed when your order ships</span>
+          </div>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Link href="/"
+            className="flex-1 py-2.5 bg-brand-primary hover:bg-brand-primary-dark text-white font-medium rounded-xl transition-colors text-sm">
+            Continue Shopping
+          </Link>
+          <a href="mailto:support@neurotonics.com.au"
+            className="flex-1 py-2.5 border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium rounded-xl transition-colors text-sm">
+            Contact Support
+          </a>
+        </div>
       </div>
     </main>
   );

@@ -132,6 +132,7 @@ async function sendOrderConfirmation(order) {
   const vars = {
     customerName:   escapeHtml(order.customer_name || 'Valued Customer'),
     customerEmail:  escapeHtml(order.customer_email),
+    orderNumber:    escapeHtml(order.order_number || '#' + order.id),
     itemsTable:     buildItemsTable(items),
     shippingLabel:  escapeHtml(shipping.name || shipping.zone || 'Standard'),
     shippingFee:    fmtAud(shipping.fee || 0),
@@ -145,7 +146,7 @@ async function sendOrderConfirmation(order) {
   await transporter.sendMail({
     from:    `"Neurotonics" <${notificationEmail}>`,
     to:      order.customer_email,
-    subject: 'Your Neurotonics Order is Confirmed',
+    subject: `Order Confirmed — ${order.order_number || '#' + order.id}`,
     html,
     text: `Hi ${order.customer_name},\n\nYour order has been confirmed. Total: ${fmtAud(order.total)}.\n\nThank you for choosing Neurotonics!`,
   });
@@ -184,7 +185,7 @@ async function sendAdminOrderAlert(order) {
   await transporter.sendMail({
     from:    `"Neurotonics System" <${EMAIL_FROM}>`,
     to:      adminEmail,
-    subject: `New Order #${order.id} — ${order.customer_name} — ${fmtAud(order.total)}`,
+    subject: `New Order ${order.order_number || '#' + order.id} — ${order.customer_name} — ${fmtAud(order.total)}`,
     html,
     text: `New order received.\nCustomer: ${order.customer_name} <${order.customer_email}>\nTotal: ${fmtAud(order.total)}\nStripe: ${order.stripe_session_id}`,
   });
@@ -230,4 +231,124 @@ async function sendPasswordResetEmail(user, token, baseUrl) {
   });
 }
 
-module.exports = { sendOrderConfirmation, sendAdminOrderAlert, sendPasswordResetEmail, interpolate, escapeHtml };
+// ---------------------------------------------------------------------------
+// sendFulfillmentEmail
+// Sent to the customer when their order is marked as fulfilled/shipped.
+// ---------------------------------------------------------------------------
+async function sendFulfillmentEmail(order) {
+  if (!order.customer_email) return;
+
+  const notificationEmail = getSetting('notification_email') || EMAIL_FROM;
+
+  let shipping = {};
+  try { shipping = JSON.parse(order.shipping); } catch { /* ignore */ }
+
+  let addr = {};
+  try { addr = JSON.parse(order.shipping_address); } catch { /* ignore */ }
+
+  let items = [];
+  try { items = JSON.parse(order.items); } catch { /* ignore */ }
+
+  const trackingNumber = order.tracking_number || '';
+  const carrier = order.carrier || '';
+  const trackingLink = carrier.toLowerCase().includes('auspost')
+    ? `https://auspost.com.au/mypost/track/#/search?searchTerm=${encodeURIComponent(trackingNumber)}`
+    : trackingNumber ? `https://www.google.com/search?q=${encodeURIComponent(carrier + ' tracking ' + trackingNumber)}` : '';
+
+  const html = `
+<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a202c;">
+  <div style="background:#1a2e4a;padding:24px;border-radius:8px 8px 0 0;">
+    <h1 style="color:#fff;margin:0;font-size:22px;">Your Order Has Been Shipped! 📦</h1>
+  </div>
+  <div style="background:#f7fafc;padding:24px;border-radius:0 0 8px 8px;">
+    <p>Hi ${escapeHtml(order.customer_name || 'Valued Customer')},</p>
+    <p>Great news! Your order <strong>${escapeHtml(order.order_number || '#' + order.id)}</strong> has been dispatched and is on its way to you.</p>
+
+    ${trackingNumber ? `
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin:16px 0;">
+      <h3 style="margin:0 0 8px;font-size:14px;color:#4a5568;">Tracking Information</h3>
+      ${carrier ? `<p style="margin:4px 0;"><strong>Carrier:</strong> ${escapeHtml(carrier)}</p>` : ''}
+      <p style="margin:4px 0;"><strong>Tracking Number:</strong> ${escapeHtml(trackingNumber)}</p>
+      ${trackingLink ? `<p style="margin:8px 0;"><a href="${trackingLink}" style="background:#1a2e4a;color:#fff;padding:8px 16px;border-radius:6px;text-decoration:none;font-size:13px;">Track Your Package</a></p>` : ''}
+    </div>` : ''}
+
+    <h3 style="font-size:14px;margin-top:16px;">Order Summary</h3>
+    ${buildItemsTable(items)}
+    <p><strong>Shipping to:</strong> ${escapeHtml(formatAddress(addr))}</p>
+    <p><strong>Shipping method:</strong> ${escapeHtml(shipping.name || 'Standard Shipping')}</p>
+    <p><strong>Order Total:</strong> ${fmtAud(order.total || 0)}</p>
+
+    ${order.fulfillment_notes ? `<p><strong>Note:</strong> ${escapeHtml(order.fulfillment_notes)}</p>` : ''}
+
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;">
+    <p style="font-size:12px;color:#718096;">
+      Questions? Contact us at <a href="mailto:support@neurotonics.com.au" style="color:#1a2e4a;">support@neurotonics.com.au</a><br>
+      Neurotonics · Always read the label and follow the directions for use.
+    </p>
+  </div>
+</div>`.trim();
+
+  const transporter = createTransporter();
+  await transporter.sendMail({
+    from:    `"Neurotonics" <${notificationEmail}>`,
+    to:      order.customer_email,
+    subject: `Your Order ${order.order_number || '#' + order.id} Has Been Shipped`,
+    html,
+    text: `Hi ${order.customer_name},\n\nYour order has been shipped!\n${trackingNumber ? `Tracking: ${carrier ? carrier + ' — ' : ''}${trackingNumber}\n` : ''}Total: ${fmtAud(order.total)}\n\nThank you for choosing Neurotonics!`,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// sendOrderStatusEmail
+// Generic status-change notification to customer (cancelled, refunded, etc.)
+// ---------------------------------------------------------------------------
+async function sendOrderStatusEmail(order, newStatus) {
+  if (!order.customer_email) return;
+
+  const statusMessages = {
+    cancelled: { subject: 'Your Order Has Been Cancelled', headline: 'Order Cancelled', body: 'Your order has been cancelled. If you paid, a refund will be processed within 3-5 business days.' },
+    refunded:  { subject: 'Your Refund Has Been Processed', headline: 'Refund Processed', body: 'Your refund has been processed and will appear in your account within 3-5 business days.' },
+  };
+
+  const msg = statusMessages[newStatus];
+  if (!msg) return;
+
+  const notificationEmail = getSetting('notification_email') || EMAIL_FROM;
+
+  const html = `
+<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a202c;">
+  <div style="background:#1a2e4a;padding:24px;border-radius:8px 8px 0 0;">
+    <h1 style="color:#fff;margin:0;font-size:22px;">${msg.headline}</h1>
+  </div>
+  <div style="background:#f7fafc;padding:24px;border-radius:0 0 8px 8px;">
+    <p>Hi ${escapeHtml(order.customer_name || 'Valued Customer')},</p>
+    <p>${msg.body}</p>
+    <p><strong>Order:</strong> ${escapeHtml(order.order_number || '#' + order.id)}</p>
+    <p><strong>Amount:</strong> ${fmtAud(order.total || 0)}</p>
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;">
+    <p style="font-size:12px;color:#718096;">
+      Questions? Contact us at <a href="mailto:support@neurotonics.com.au" style="color:#1a2e4a;">support@neurotonics.com.au</a><br>
+      Neurotonics
+    </p>
+  </div>
+</div>`.trim();
+
+  const transporter = createTransporter();
+  await transporter.sendMail({
+    from:    `"Neurotonics" <${notificationEmail}>`,
+    to:      order.customer_email,
+    subject: msg.subject,
+    html,
+    text: `Hi ${order.customer_name},\n\n${msg.body}\nOrder: ${order.order_number || '#' + order.id}\nAmount: ${fmtAud(order.total)}\n\nNeurotonics`,
+  });
+}
+
+module.exports = {
+  sendOrderConfirmation,
+  sendAdminOrderAlert,
+  sendFulfillmentEmail,
+  sendOrderStatusEmail,
+  sendPasswordResetEmail,
+  interpolate,
+  escapeHtml,
+};
