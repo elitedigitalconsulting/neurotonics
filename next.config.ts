@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
     // inlines them correctly even when not in a .env file.
     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '',
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ?? '',
+    NEXT_PUBLIC_WEB3FORMS_KEY: process.env.NEXT_PUBLIC_WEB3FORMS_KEY ?? '',
     // Debug marker — remove after confirming env block works
     NEXT_PUBLIC_BUILD_MARKER: 'neurotonics-build-v2',
   },

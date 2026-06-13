@@ -12,10 +12,12 @@ import {
   type ShippingOption,
 } from '@/lib/shipping';
 import type { CheckoutContact, CheckoutAddress } from '@/lib/checkoutState';
-import { clearCheckoutData } from '@/lib/checkoutState';
-import { clearShipping } from '@/lib/shippingState';
+import { clearCheckoutData, loadCheckoutData } from '@/lib/checkoutState';
+import { clearShipping, loadShipping } from '@/lib/shippingState';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
+const WEB3FORMS_KEY = process.env.NEXT_PUBLIC_WEB3FORMS_KEY ?? '';
+const PURCHASE_NOTIFICATION_TIMEOUT_MS = 5_000;
 
 // ---------------------------------------------------------------------------
 // Constants (exported for tests)
@@ -161,6 +163,114 @@ function selectCls(hasError: boolean) {
   return inputCls(hasError, 'appearance-none bg-white pr-8 cursor-pointer');
 }
 
+function fmtAud(amount: number): string {
+  return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount || 0);
+}
+
+function formatAddress(address: CheckoutAddress | undefined): string {
+  if (!address) return '(not provided)';
+  return [
+    address.fullName,
+    address.address1,
+    address.address2,
+    address.city,
+    address.state,
+    address.postcode,
+    address.country,
+  ].filter(Boolean).join(', ') || '(not provided)';
+}
+
+async function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PURCHASE_NOTIFICATION_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function serverEmailIsConfigured(): Promise<boolean> {
+  if (!API_URL) return false;
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/email-status`);
+    if (!res.ok) return false;
+    const data = await res.json() as { configured?: boolean };
+    return data.configured === true;
+  } catch {
+    return false;
+  }
+}
+
+function getPurchaseNotificationKey(sessionId: string | null, items: Array<{ name: string; quantity: number }>, email: string): string {
+  const stablePart = sessionId || `${email}:${items.map((item) => `${item.name}x${item.quantity}`).join('|')}`;
+  return `neurotonics-purchase-notification:${stablePart}`;
+}
+
+async function sendWeb3FormsPurchaseNotification({
+  sessionId,
+  items,
+  subtotal,
+}: {
+  sessionId: string | null;
+  items: Array<{ name: string; price: number; quantity: number }>;
+  subtotal: number;
+}) {
+  if (!WEB3FORMS_KEY || items.length === 0) return;
+
+  const checkout = loadCheckoutData();
+  const shipping = loadShipping();
+  const customerName = checkout?.address.fullName || '';
+  const customerEmail = checkout?.contact.email || '';
+  const customerPhone = checkout?.contact.phone || '';
+  const shippingFee = shipping?.option.fee ?? 0;
+  const total = subtotal + shippingFee;
+  const notificationKey = getPurchaseNotificationKey(sessionId, items, customerEmail);
+
+  try {
+    if (localStorage.getItem(notificationKey)) return;
+    localStorage.setItem(notificationKey, 'pending');
+  } catch {
+    // If localStorage is unavailable, continue and rely on cart clearing below.
+  }
+
+  if (await serverEmailIsConfigured()) return;
+
+  const payload = {
+    access_key: WEB3FORMS_KEY,
+    subject: `Product Purchased — ${customerName || customerEmail || 'Neurotonics customer'} — ${fmtAud(total)}`,
+    from_name: customerName || 'Neurotonics checkout',
+    botcheck: '',
+    'Notification Source': 'Stripe Checkout success redirect',
+    'Stripe Checkout Session': sessionId || '(not provided)',
+    'Customer Name': customerName || '(not provided)',
+    'Customer Email': customerEmail || '(not provided)',
+    'Customer Phone': customerPhone || '(not provided)',
+    'Shipping Address': formatAddress(checkout?.address),
+    'Shipping Method': shipping?.option.name || shipping?.option.zone || '(not provided)',
+    'Shipping Fee': fmtAud(shippingFee),
+    'Items': items.map((item) => `${item.name} x${item.quantity} @ ${fmtAud(item.price)}`).join('\n'),
+    'Subtotal': fmtAud(subtotal),
+    'Total': fmtAud(total),
+  };
+
+  const res = await fetchWithTimeout('https://api.web3forms.com/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({})) as { success?: boolean; message?: string };
+  if (!res.ok || !data.success) {
+    throw new Error(data.message || 'Web3Forms purchase notification failed');
+  }
+
+  try {
+    localStorage.setItem(notificationKey, 'sent');
+  } catch {
+    // Ignore localStorage write failures; the checkout data is cleared next.
+  }
+}
+
 function ChevronDown() {
   return (
     <svg className="w-4 h-4 text-gray-400 pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -173,14 +283,41 @@ function ChevronDown() {
 // Success / cancel / empty views
 // ---------------------------------------------------------------------------
 
-function SuccessView() {
-  const { clearCart } = useCart();
+function SuccessView({ sessionId }: { sessionId: string | null }) {
+  const { items, subtotal, clearCart } = useCart();
 
   useEffect(() => {
-    clearCart();
-    import('@/lib/shippingState').then(({ clearShipping }) => clearShipping());
-    import('@/lib/checkoutState').then(({ clearCheckoutData }) => clearCheckoutData());
-  }, [clearCart]);
+    let cancelled = false;
+    const itemSnapshot = items.map((item) => ({
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+    }));
+    const subtotalSnapshot = subtotal;
+
+    async function notifyThenClear() {
+      try {
+        await sendWeb3FormsPurchaseNotification({
+          sessionId,
+          items: itemSnapshot,
+          subtotal: subtotalSnapshot,
+        });
+      } catch (err) {
+        console.error('[checkout] Purchase notification fallback failed:', err);
+      } finally {
+        if (cancelled) return;
+        clearCart();
+        clearShipping();
+        clearCheckoutData();
+      }
+    }
+
+    notifyThenClear();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clearCart, items, sessionId, subtotal]);
 
   return (
     <main className="bg-gray-50 min-h-screen flex items-center justify-center p-4">
@@ -552,7 +689,7 @@ function CheckoutContent({
     setIsCheckingOut(true);
     setCheckoutError('');
 
-    const successUrl = `${window.location.href.split('?')[0]}?success=true`;
+    const successUrl = `${window.location.href.split('?')[0]}?success=true&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl  = `${window.location.href.split('?')[0]}?canceled=true`;
 
     try {
@@ -1113,7 +1250,7 @@ export default function CheckoutClient() {
   const urlCountry = searchParams.get('country');
   const urlShippingId = searchParams.get('shipping');
 
-  if (isSuccess) return <SuccessView />;
+  if (isSuccess) return <SuccessView sessionId={searchParams.get('session_id')} />;
   if (isCanceled) return <CancelView />;
   if (items.length === 0) return <EmptyCartView />;
 
