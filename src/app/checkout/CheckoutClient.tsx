@@ -714,8 +714,9 @@ function CheckoutContent({
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentFailed, setPaymentIntentFailed] = useState(false);
   const [successRedirect, setSuccessRedirect] = useState(false);
-  // stripeReady tracks when loadStripe has been called so Elements re-renders
-  const [, setStripeReady] = useState(false);
+  // stripeReady: true once loadStripe() has been called with the real key.
+  // Elements must NOT render until this is true to avoid mounting with null stripe.
+  const [stripeReady, setStripeReady] = useState(() => !!_stripePromise);
 
   // Derived
   const isAustralia = address.country === 'AU';
@@ -848,7 +849,10 @@ function CheckoutContent({
         if (!cancelled) {
           if (data.clientSecret) {
             // Also initialise Stripe if not already done (key from PaymentIntent response)
-            if (data.publishableKey) initStripe(data.publishableKey);
+            if (data.publishableKey && !_stripePromise) {
+              initStripe(data.publishableKey);
+              setStripeReady(true);
+            }
             setClientSecret(data.clientSecret);
           } else {
             setPaymentIntentFailed(true);
@@ -1313,7 +1317,7 @@ function CheckoutContent({
               All transactions are secure and encrypted.
             </p>
 
-            {clientSecret ? (
+            {clientSecret && stripeReady ? (
               <Elements
                 stripe={getStripePromise()}
                 options={{ clientSecret, appearance: stripeAppearance }}
