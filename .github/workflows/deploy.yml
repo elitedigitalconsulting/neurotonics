@@ -30,6 +30,18 @@ jobs:
 
       - run: npm ci
 
+      - name: Check required secrets are set
+        env:
+          STRIPE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+          API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+        run: |
+          echo "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY length: ${#STRIPE_KEY}"
+          echo "NEXT_PUBLIC_API_URL length: ${#API_URL}"
+          if [ ${#STRIPE_KEY} -eq 0 ]; then
+            echo "ERROR: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY secret is empty or not set!"
+            echo "Go to Settings → Secrets → Actions and add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"
+          fi
+
       - run: npm run build
         env:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
