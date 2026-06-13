@@ -1,12 +1,42 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronRight, Search } from 'lucide-react';
+import { ChevronRight, Search, Send } from 'lucide-react';
 import { api, type Order } from '../api';
 import { statusBadge } from '../components/Badge';
 import { toast } from '../components/Toast';
 
 function fmtAud(n: number) {
   return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(n ?? 0);
+}
+
+function NotesEditor({ orderId, initialNotes, onSave, saving }: {
+  orderId: number; initialNotes: string; onSave: (notes: string) => void; saving: boolean;
+}) {
+  const [notes, setNotes] = useState(initialNotes);
+  // Reset local state when a different order is selected
+  const [prevId, setPrevId] = useState(orderId);
+  if (prevId !== orderId) {
+    setPrevId(orderId);
+    setNotes(initialNotes);
+  }
+  return (
+    <div>
+      <textarea
+        rows={3}
+        value={notes}
+        onChange={e => setNotes(e.target.value)}
+        placeholder="Add internal notes…"
+        className="w-full text-sm border border-gray-200 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+      />
+      <button
+        onClick={() => onSave(notes)}
+        disabled={saving || notes === initialNotes}
+        className="mt-1 flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 rounded-lg disabled:opacity-40 font-medium"
+      >
+        <Send size={12} /> {saving ? 'Saving…' : 'Save notes'}
+      </button>
+    </div>
+  );
 }
 
 const STATUSES = ['', 'pending', 'processing', 'fulfilled', 'refunded', 'failed'];
@@ -36,7 +66,21 @@ export default function OrdersPage() {
       qc.invalidateQueries({ queryKey: ['orders'] });
       qc.invalidateQueries({ queryKey: ['order-stats'] });
       setSelected(data.order);
-      toast('Order status updated');
+      const msg = data.order.status === 'fulfilled'
+        ? 'Order marked as fulfilled — fulfilment email sent to customer'
+        : 'Order status updated';
+      toast(msg);
+    },
+    onError: (err: Error) => toast(err.message, 'error'),
+  });
+
+  const notesMutation = useMutation<{ order: Order }, Error, { id: number; notes: string }>({
+    mutationFn: ({ id, notes }) =>
+      api.patch<{ order: Order }>(`/cms/orders/${id}/notes`, { notes }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['orders'] });
+      setSelected(data.order);
+      toast('Notes saved');
     },
     onError: (err: Error) => toast(err.message, 'error'),
   });
@@ -197,6 +241,17 @@ export default function OrdersPage() {
               <span>Total</span>
               <span>{fmtAud(selected.total)}</span>
             </div>
+          </section>
+
+          {/* Internal notes */}
+          <section className="mb-5">
+            <p className="text-xs font-semibold text-gray-500 mb-2">Internal Notes</p>
+            <NotesEditor
+              orderId={selected.id}
+              initialNotes={(selected as Order & { notes?: string }).notes ?? ''}
+              onSave={(notes) => notesMutation.mutate({ id: selected.id, notes })}
+              saving={notesMutation.isPending}
+            />
           </section>
 
           {/* Stripe */}

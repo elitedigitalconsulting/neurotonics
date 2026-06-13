@@ -108,21 +108,23 @@ function githubPut(apiPath, body, pat) {
 // ---------------------------------------------------------------------------
 
 /**
- * Commits an updated content file directly to the GitHub repository using the
- * Git Contents API.  This ensures the file is up-to-date in git before the
- * rebuild workflow checks out the repo.
+ * Commits a file directly to the GitHub repository using the Git Contents API.
+ * Works for both text files (UTF-8 strings) and binary files (Buffer / base64
+ * strings).  Ensures the file is up-to-date in git before the rebuild workflow
+ * checks out the repo.
  *
  * The commit message includes `[skip ci]` so that the push does not trigger
  * the normal `deploy.yml` workflow (which would also redeploy the Render
  * server unnecessarily).  The dedicated `cms-rebuild.yml` workflow is
  * triggered separately via `triggerRebuild()`.
  *
- * @param {string} repoFilePath - Path within the repo (e.g. 'src/content/product.json')
- * @param {string} utf8Content  - Full file content as a UTF-8 string
- * @param {string} [message]    - Optional commit message override
+ * @param {string}          repoFilePath - Path within the repo (e.g. 'src/content/product.json')
+ * @param {string|Buffer}   content      - File content: UTF-8 string, pre-encoded base64 string,
+ *                                         or a raw Buffer (all are base64-encoded for the API)
+ * @param {string}          [message]    - Optional commit message override
  * @returns {Promise<void>}
  */
-async function commitContentFile(repoFilePath, utf8Content, message) {
+async function commitContentFile(repoFilePath, content, message) {
   const pat = process.env.GITHUB_PAT;
   if (!pat) {
     console.warn('[github] GITHUB_PAT not set — skipping content commit to GitHub.');
@@ -132,6 +134,13 @@ async function commitContentFile(repoFilePath, utf8Content, message) {
   const commitMessage = message || `chore(cms): update ${repoFilePath} [skip ci]`;
   const encodedPath   = repoFilePath.split('/').map(encodeURIComponent).join('/');
   const apiPath       = `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${encodedPath}`;
+
+  // Normalise content to a base64 string for the GitHub API.
+  // - Buffer  → convert directly (binary-safe)
+  // - string  → treat as UTF-8 and encode
+  const base64Content = Buffer.isBuffer(content)
+    ? content.toString('base64')
+    : Buffer.from(content, 'utf8').toString('base64');
 
   // Retrieve the current file's blob SHA — required by the API to update an
   // existing file.  A 404 means the file is new; proceed without a SHA.
@@ -146,7 +155,7 @@ async function commitContentFile(repoFilePath, utf8Content, message) {
 
   const body = JSON.stringify({
     message: commitMessage,
-    content: Buffer.from(utf8Content, 'utf8').toString('base64'),
+    content: base64Content,
     ...(currentSha ? { sha: currentSha } : {}),
   });
 

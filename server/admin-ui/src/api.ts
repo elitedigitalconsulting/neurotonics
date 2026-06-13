@@ -127,6 +127,7 @@ export interface Order {
   subtotal: number;
   total: number;
   status: 'pending' | 'processing' | 'fulfilled' | 'refunded' | 'failed';
+  notes: string;
   created_at: string;
   updated_at: string;
 }
@@ -173,6 +174,7 @@ export interface Settings {
   buy_globally_enabled: string;
   promo_banner_visible: string;
   promo_banner_text: string;
+  fulfillment_email_template?: string;
 }
 
 export interface OrderStats {

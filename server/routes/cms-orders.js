@@ -5,14 +5,17 @@
  *
  * Order management for the CMS dashboard.
  *
- * GET  /cms/orders              — paginated list (filters: status, search)
- * GET  /cms/orders/:id          — single order
- * PATCH /cms/orders/:id/status  — update order status
+ * GET   /cms/orders              — paginated list (filters: status, search)
+ * GET   /cms/orders/stats        — summary counts for dashboard
+ * GET   /cms/orders/:id          — single order
+ * PATCH /cms/orders/:id/status   — update order status (sends fulfilment email on → fulfilled)
+ * PATCH /cms/orders/:id/notes    — update internal notes
  */
 
 const express = require('express');
 const { requireAuth } = require('../auth');
 const { db, stmts } = require('../db');
+const { sendFulfillmentEmail } = require('../email');
 
 const router = express.Router();
 
@@ -128,7 +131,36 @@ router.patch('/:id/status', requireAuth, (req, res) => {
   const order = stmts.getOrderById.get(id);
   if (!order) return res.status(404).json({ error: 'Order not found.' });
 
+  const previousStatus = order.status;
   stmts.updateOrderStatus.run(status, id);
+  const updated = stmts.getOrderById.get(id);
+
+  // Send fulfilment email when an order transitions to "fulfilled"
+  if (status === 'fulfilled' && previousStatus !== 'fulfilled') {
+    sendFulfillmentEmail(updated).catch((err) => {
+      console.error(`[cms-orders] Fulfilment email failed for order #${id}:`, err.message);
+    });
+  }
+
+  return res.json({ order: parseOrder(updated) });
+});
+
+// ---------------------------------------------------------------------------
+// PATCH /cms/orders/:id/notes
+// ---------------------------------------------------------------------------
+router.patch('/:id/notes', requireAuth, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'Invalid order ID.' });
+
+  const { notes } = req.body;
+  if (typeof notes !== 'string') {
+    return res.status(400).json({ error: '`notes` must be a string.' });
+  }
+
+  const order = stmts.getOrderById.get(id);
+  if (!order) return res.status(404).json({ error: 'Order not found.' });
+
+  stmts.updateOrderNotes.run(notes.slice(0, 2000), id);
   const updated = stmts.getOrderById.get(id);
   return res.json({ order: parseOrder(updated) });
 });

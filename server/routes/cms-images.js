@@ -15,6 +15,7 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const { requireAuth } = require('../auth');
+const { commitContentFile } = require('../github');
 
 // Load sharp lazily so a missing/incompatible native binary doesn't crash the
 // whole server — image upload will fail gracefully with a 503 instead.
@@ -83,10 +84,19 @@ router.post('/upload', requireAuth, upload.single('image'), async (req, res) => 
     const outName = `${base}-${ts}.webp`;
     const outPath = path.join(UPLOAD_DIR, outName);
 
-    await sharp(req.file.buffer)
+    const imageBuffer = await sharp(req.file.buffer)
       .resize({ width: 1600, withoutEnlargement: true })
       .webp({ quality: 85 })
-      .toFile(outPath);
+      .toBuffer();
+
+    fs.writeFileSync(outPath, imageBuffer);
+
+    // Commit the image to the GitHub repository so it is served by GitHub Pages
+    // alongside the static site (public/images/). Fire-and-forget — the local
+    // copy on this server is the source of truth; GitHub sync failure is logged
+    // but does not fail the upload response.
+    commitContentFile(`public/images/${outName}`, imageBuffer, `chore(cms): upload image ${outName} [skip ci]`)
+      .catch((err) => console.error('[cms-images] GitHub image commit failed:', err.message));
 
     const url = `/images/${outName}`;
     return res.status(201).json({ filename: outName, url });

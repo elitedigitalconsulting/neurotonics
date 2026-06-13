@@ -133,6 +133,28 @@ const DEFAULT_ADMIN_ALERT_TEMPLATE = `
 </div>
 `.trim();
 
+const DEFAULT_FULFILLMENT_TEMPLATE = `
+<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a202c;">
+  <div style="background:#1a2e4a;padding:24px;border-radius:8px 8px 0 0;">
+    <h1 style="color:#fff;margin:0;font-size:22px;">Your Order Has Shipped!</h1>
+  </div>
+  <div style="background:#f7fafc;padding:24px;border-radius:0 0 8px 8px;">
+    <p>Hi {{customerName}},</p>
+    <p>Great news — your Neurotonics order has been fulfilled and is on its way to you!</p>
+    <h2 style="font-size:16px;margin-bottom:8px;">Order Summary</h2>
+    {{itemsTable}}
+    <p><strong>Shipping:</strong> {{shippingLabel}} — {{shippingFee}}</p>
+    <p><strong>Total: {{total}}</strong></p>
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;">
+    <p>If you have any questions about your order, please contact us at support@neurotonics.com.au.</p>
+    <p style="font-size:12px;color:#718096;">
+      Neurotonics · support@neurotonics.com.au · 1300 NEURO<br>
+      Always read the label and follow the directions for use.
+    </p>
+  </div>
+</div>
+`.trim();
+
 const DEFAULT_SETTINGS = {
   notification_email:           'orders@neurotonics.com.au',
   admin_notification_email:     'admin@elitedigitalconsulting.com.au',
@@ -141,6 +163,7 @@ const DEFAULT_SETTINGS = {
   promo_banner_text:            'Free shipping on orders over $99 | ARTG Listed | Made in Australia',
   order_confirmation_template:  DEFAULT_ORDER_TEMPLATE,
   admin_alert_template:         DEFAULT_ADMIN_ALERT_TEMPLATE,
+  fulfillment_email_template:   DEFAULT_FULFILLMENT_TEMPLATE,
 };
 
 const insertSetting = db.prepare(
@@ -189,6 +212,9 @@ const stmts = {
   getOrderByStripeId:    db.prepare('SELECT * FROM orders WHERE stripe_session_id = ?'),
   updateOrderStatus:     db.prepare(
     `UPDATE orders SET status = ?, updated_at = datetime('now') WHERE id = ?`
+  ),
+  updateOrderNotes: db.prepare(
+    `UPDATE orders SET notes = ?, updated_at = datetime('now') WHERE id = ?`
   ),
   listOrders: db.prepare(`
     SELECT * FROM orders ORDER BY created_at DESC LIMIT ? OFFSET ?

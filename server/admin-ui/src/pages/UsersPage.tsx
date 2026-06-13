@@ -107,7 +107,7 @@ function UserModal({ user, onClose, onSaved }: {
   const createMutation = useMutation({
     mutationFn: (data: { email: string; password: string; role: string; name: string }) =>
       api.post('/cms/users', data),
-    onSuccess: () => { toast(isEdit ? 'User updated' : 'User created'); onSaved(); },
+    onSuccess: () => { toast('User created'); onSaved(); },
     onError: (err: Error) => toast(err.message, 'error'),
   });
 
@@ -115,6 +115,13 @@ function UserModal({ user, onClose, onSaved }: {
     mutationFn: (data: { email: string; role: string; name: string }) =>
       api.patch(`/cms/users/${user?.id}`, data),
     onSuccess: () => { toast('User updated'); onSaved(); },
+    onError: (err: Error) => toast(err.message, 'error'),
+  });
+
+  const passwordMutation = useMutation({
+    mutationFn: (password: string) =>
+      api.patch(`/cms/users/${user?.id}/password`, { password }),
+    onSuccess: () => { toast('Password changed'); onSaved(); },
     onError: (err: Error) => toast(err.message, 'error'),
   });
 
@@ -129,12 +136,17 @@ function UserModal({ user, onClose, onSaved }: {
     };
     if (isEdit) {
       updateMutation.mutate(payload);
+      // Change password only if a new one was entered
+      const newPwd = String(fd.get('new_password') ?? '').trim();
+      if (newPwd.length >= 8) {
+        passwordMutation.mutate(newPwd);
+      }
     } else {
       createMutation.mutate(payload);
     }
   }
 
-  const pending = createMutation.isPending || updateMutation.isPending;
+  const pending = createMutation.isPending || updateMutation.isPending || passwordMutation.isPending;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
@@ -150,9 +162,13 @@ function UserModal({ user, onClose, onSaved }: {
           <Field label="Email">
             <input name="email" type="email" required className="input w-full" defaultValue={user?.email ?? ''} />
           </Field>
-          {!isEdit && (
+          {!isEdit ? (
             <Field label="Password">
               <input name="password" type="password" required minLength={8} className="input w-full" placeholder="Min. 8 characters" />
+            </Field>
+          ) : (
+            <Field label="New password (leave blank to keep current)">
+              <input name="new_password" type="password" minLength={8} className="input w-full" placeholder="Min. 8 characters" />
             </Field>
           )}
           <Field label="Role">

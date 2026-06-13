@@ -191,6 +191,45 @@ async function sendAdminOrderAlert(order) {
 }
 
 // ---------------------------------------------------------------------------
+// sendFulfillmentEmail
+// Sends a shipment/fulfillment notification to the customer.
+// ---------------------------------------------------------------------------
+async function sendFulfillmentEmail(order) {
+  const notificationEmail = getSetting('notification_email') || EMAIL_FROM;
+  const template = getSetting('fulfillment_email_template') || '';
+
+  if (!template || !order.customer_email) return;
+
+  let items = [];
+  try { items = JSON.parse(order.items); } catch { /* ignore */ }
+
+  let shipping = {};
+  try { shipping = JSON.parse(order.shipping); } catch { /* ignore */ }
+
+  const vars = {
+    customerName:   escapeHtml(order.customer_name || 'Valued Customer'),
+    customerEmail:  escapeHtml(order.customer_email),
+    itemsTable:     buildItemsTable(items),
+    shippingLabel:  escapeHtml(shipping.name || shipping.zone || 'Standard'),
+    shippingFee:    fmtAud(shipping.fee || 0),
+    total:          fmtAud(order.total || 0),
+    orderId:        String(order.id || ''),
+    stripeSessionId: escapeHtml(order.stripe_session_id || ''),
+  };
+
+  const html = interpolate(template, vars);
+
+  const transporter = createTransporter();
+  await transporter.sendMail({
+    from:    `"Neurotonics" <${notificationEmail}>`,
+    to:      order.customer_email,
+    subject: 'Your Neurotonics Order Has Been Fulfilled',
+    html,
+    text: `Hi ${order.customer_name},\n\nYour order #${order.id} has been fulfilled and is on its way!\n\nTotal: ${fmtAud(order.total)}.\n\nThank you for choosing Neurotonics!`,
+  });
+}
+
+// ---------------------------------------------------------------------------
 // sendPasswordResetEmail
 // Sends a password reset link to the specified user.
 // ---------------------------------------------------------------------------
@@ -230,4 +269,4 @@ async function sendPasswordResetEmail(user, token, baseUrl) {
   });
 }
 
-module.exports = { sendOrderConfirmation, sendAdminOrderAlert, sendPasswordResetEmail, interpolate, escapeHtml };
+module.exports = { sendOrderConfirmation, sendAdminOrderAlert, sendFulfillmentEmail, sendPasswordResetEmail, interpolate, escapeHtml };
