@@ -37,8 +37,14 @@ const nodemailer = require('nodemailer');
 // password from ADMIN_INITIAL_EMAIL / ADMIN_INITIAL_PASSWORD on every start.
 // Remove FORCE_ADMIN_RESET after the first successful login.
 // ---------------------------------------------------------------------------
-const { db: _db, stmts: _stmts } = require('./db');
+const { db: _db, stmts: _stmts, logTableCounts } = require('./db');
 const { hashPassword } = require('./auth');
+const { restoreIfEmpty, schedulePeriodicBackup, writeBackup } = require('./backup');
+
+// Restore from backup BEFORE creating the bootstrap admin so that existing
+// user records are re-imported first (avoiding duplicate-email conflicts).
+restoreIfEmpty();
+
 (async () => {
   const configEmail    = process.env.ADMIN_INITIAL_EMAIL    || 'admin@elitedigitalconsulting.com.au';
   const configPassword = process.env.ADMIN_INITIAL_PASSWORD || 'changeme123';
@@ -61,6 +67,14 @@ const { hashPassword } = require('./auth');
     }
   }
 })().catch(console.error);
+
+// Log table counts and start the periodic backup after the bootstrap IIFE
+// has had a chance to create the initial admin user.  The setTimeout gives
+// the async IIFE ~500ms to complete before we snapshot the DB state.
+setTimeout(() => {
+  logTableCounts();
+  schedulePeriodicBackup(5 * 60 * 1000); // backup every 5 minutes
+}, 500);
 
 // ---------------------------------------------------------------------------
 // Initialise Stripe (optional — checkout endpoints disabled if key is missing)
@@ -133,6 +147,7 @@ const cmsSettingsRouter  = require('./routes/cms-settings');
 const cmsUsersRouter     = require('./routes/cms-users');
 const cmsImagesRouter    = require('./routes/cms-images');
 const cmsStockistRouter  = require('./routes/cms-stockist');
+const cmsBackupRouter    = require('./routes/cms-backup');
 
 // Apply general rate limit to all CMS API routes
 app.use('/cms', cmsRateLimiter);
@@ -145,6 +160,7 @@ app.use('/cms/settings',             cmsSettingsRouter);
 app.use('/cms/users',                cmsUsersRouter);
 app.use('/cms/images',               cmsImagesRouter);
 app.use('/cms/stockist-applications', cmsStockistRouter);
+app.use('/cms/backup',               cmsBackupRouter);
 
 // Send anyone opening the Render service URL directly to the CMS login page.
 app.get('/', (_req, res) => {
@@ -669,8 +685,9 @@ app.post('/stockist-application', async (req, res) => {
   ].filter((line) => line !== '').join('\n');
 
   // --- Save to DB first, respond immediately, email in background ---
+  let savedApplication;
   try {
-    _stmts.createStockistApplication.run(
+    const result = _stmts.createStockistApplication.run(
       safe.fullName,
       safe.businessName,
       safe.abn,
@@ -681,8 +698,16 @@ app.post('/stockist-application', async (req, res) => {
       safe.businessWebsite,
       safe.message,
     );
+    savedApplication = _stmts.getStockistApplicationById.get(result.lastInsertRowid);
+    console.log(
+      `[stockist] Application #${savedApplication?.id} saved — ` +
+      `${safe.businessName} (${safe.email})`
+    );
+    // Write a fresh backup immediately after saving so that this application
+    // is not lost if the server restarts before the next periodic backup.
+    setImmediate(() => writeBackup());
   } catch (dbErr) {
-    console.error('Stockist application DB save failed:', dbErr);
+    console.error('[stockist] DB save FAILED for', safe.businessName, ':', dbErr.message);
     return res.status(500).json({ error: 'Failed to save application. Please try again later.' });
   }
 

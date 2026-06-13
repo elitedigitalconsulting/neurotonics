@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, RefreshCw, TestTube } from 'lucide-react';
-import { api } from '../api';
+import { Save, RefreshCw, TestTube, Download, Upload, AlertTriangle, CheckCircle } from 'lucide-react';
+import { api, getAccessToken } from '../api';
 import { toast } from '../components/Toast';
 import { useAuth } from '../AuthContext';
 
-const TABS = ['General', 'Email Templates'] as const;
+const TABS = ['General', 'Backup & Restore', 'Email Templates'] as const;
 type Tab = typeof TABS[number];
 
 export default function SettingsPage() {
@@ -29,8 +29,9 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {tab === 'General'         && <GeneralSettings />}
-      {tab === 'Email Templates' && <EmailTemplateSettings />}
+      {tab === 'General'          && <GeneralSettings />}
+      {tab === 'Backup & Restore' && <BackupRestoreSettings />}
+      {tab === 'Email Templates'  && <EmailTemplateSettings />}
     </div>
   );
 }
@@ -133,6 +134,192 @@ function GeneralSettings() {
         {testStatus && <p className="mt-2 text-sm text-gray-600">{testStatus}</p>}
       </section>
     </form>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Backup & Restore (admin only)
+// ---------------------------------------------------------------------------
+interface BackupStatus {
+  exists: boolean;
+  backupPath?: string;
+  createdAt?: string;
+  fileSizeBytes?: number;
+  counts?: { stockist_applications: number; users: number; settings: number };
+}
+
+function BackupRestoreSettings() {
+  const { user } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [restoreStatus, setRestoreStatus] = useState<string | null>(null);
+
+  const statusQuery = useQuery<BackupStatus>({
+    queryKey: ['backup-status'],
+    queryFn: () => api.get('/cms/backup/status'),
+    enabled: user?.role === 'admin',
+    refetchInterval: 30_000,
+  });
+
+  const restoreMutation = useMutation<{ success: boolean; restored: number; skipped: number }, Error, object>({
+    mutationFn: (payload) => api.post('/cms/backup/restore', payload),
+    onSuccess: (data) => {
+      setRestoreStatus(`✓ Restored ${data.restored} records (${data.skipped} already existed)`);
+      statusQuery.refetch();
+      toast('Backup restored successfully');
+    },
+    onError: (err) => {
+      setRestoreStatus('✗ ' + err.message);
+      toast(err.message, 'error');
+    },
+  });
+
+  if (user?.role !== 'admin') {
+    return <p className="text-sm text-gray-400 italic">Backup management requires Admin role.</p>;
+  }
+
+  async function handleDownload() {
+    try {
+      const token = getAccessToken();
+      const res = await fetch('/cms/backup/download', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
+      });
+      if (!res.ok) { toast('Backup download failed', 'error'); return; }
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url;
+      a.download = `neurotonics-backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast('Backup downloaded');
+    } catch {
+      toast('Download failed', 'error');
+    }
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text    = await file.text();
+      const payload = JSON.parse(text);
+      setRestoreStatus('Restoring…');
+      restoreMutation.mutate(payload);
+    } catch {
+      setRestoreStatus('✗ Invalid JSON file');
+      toast('Invalid backup file', 'error');
+    }
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  const s = statusQuery.data;
+
+  return (
+    <div className="space-y-5 max-w-2xl">
+
+      {/* Warning banner */}
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+        <div className="flex gap-3">
+          <AlertTriangle size={20} className="text-amber-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-amber-800">Data persistence notice</p>
+            <p className="text-sm text-amber-700 mt-1">
+              The CMS database lives on Render's server. Auto-deploy is disabled, so the
+              database is preserved between CMS content saves. However, if you manually
+              redeploy the server from the Render dashboard, the database will be wiped.
+            </p>
+            <p className="text-sm text-amber-700 mt-2 font-medium">
+              Always download a backup before triggering a manual Render redeploy.
+              Re-upload the backup immediately after the new version starts up.
+            </p>
+            <p className="text-sm text-amber-600 mt-2">
+              For permanent persistence: add a Render Starter plan ($7/month) with a
+              persistent disk mounted at <code className="bg-amber-100 px-1 rounded">/data</code>
+              and set <code className="bg-amber-100 px-1 rounded">DB_BACKUP_DIR=/data</code>
+              in the Render environment.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Current backup status */}
+      <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <h2 className="text-sm font-semibold text-gray-700 mb-4">Current Backup</h2>
+        {statusQuery.isLoading ? (
+          <p className="text-sm text-gray-400">Loading…</p>
+        ) : s?.exists ? (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-green-700">
+              <CheckCircle size={16} />
+              <span className="text-sm font-medium">Backup file found</span>
+            </div>
+            <table className="text-sm w-full">
+              <tbody className="divide-y divide-gray-50">
+                <tr><td className="py-1.5 text-gray-500 w-40">Last backup</td><td className="py-1.5">{s.createdAt ? new Date(s.createdAt).toLocaleString('en-AU') : '—'}</td></tr>
+                <tr><td className="py-1.5 text-gray-500">File size</td><td className="py-1.5">{s.fileSizeBytes ? Math.round(s.fileSizeBytes / 1024) + ' KB' : '—'}</td></tr>
+                <tr><td className="py-1.5 text-gray-500">Applications</td><td className="py-1.5">{s.counts?.stockist_applications ?? 0}</td></tr>
+                <tr><td className="py-1.5 text-gray-500">Users</td><td className="py-1.5">{s.counts?.users ?? 0}</td></tr>
+                <tr><td className="py-1.5 text-gray-500">Location</td><td className="py-1.5 font-mono text-xs text-gray-400 break-all">{s.backupPath}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-gray-500">
+            <AlertTriangle size={16} className="text-amber-500" />
+            <span className="text-sm">No backup file exists yet. One will be created automatically after the next CMS save.</span>
+          </div>
+        )}
+      </section>
+
+      {/* Download */}
+      <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <h2 className="text-sm font-semibold text-gray-700 mb-2">Download Backup</h2>
+        <p className="text-xs text-gray-400 mb-4">
+          Downloads a JSON file containing all stockist applications, CMS users, and settings.
+          Orders are excluded to protect customer data. Save this file before any Render redeploy.
+        </p>
+        <button
+          onClick={handleDownload}
+          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
+        >
+          <Download size={16} /> Download Backup JSON
+        </button>
+      </section>
+
+      {/* Restore */}
+      <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <h2 className="text-sm font-semibold text-gray-700 mb-2">Restore from Backup</h2>
+        <p className="text-xs text-gray-400 mb-4">
+          Upload a previously downloaded backup JSON file. Existing records are never overwritten —
+          only missing records are inserted. Safe to run on a partial restore.
+        </p>
+        <div className="flex gap-3 items-center flex-wrap">
+          <label className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-sm font-medium rounded-lg cursor-pointer">
+            <Upload size={16} />
+            Choose Backup File
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+          </label>
+          {restoreMutation.isPending && (
+            <span className="text-sm text-gray-500 flex items-center gap-1">
+              <RefreshCw size={14} className="animate-spin" /> Restoring…
+            </span>
+          )}
+        </div>
+        {restoreStatus && (
+          <p className={`mt-3 text-sm ${restoreStatus.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>
+            {restoreStatus}
+          </p>
+        )}
+      </section>
+    </div>
   );
 }
 

@@ -64,18 +64,11 @@ jobs:
       - id: deployment
         uses: actions/deploy-pages@v4
 
-  deploy-render:
-    name: Trigger Render redeploy
-    runs-on: ubuntu-latest
-    needs: deploy
-    steps:
-      - name: Redeploy Render service
-        env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-        run: |
-          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
-            echo "RENDER_DEPLOY_HOOK_URL secret not set — skipping Render deploy."
-            exit 0
-          fi
-          echo "Triggering Render deploy..."
-          curl -sf "$RENDER_DEPLOY_HOOK_URL" && echo "Deploy triggered." || echo "Deploy hook failed (non-fatal)."
+  # NOTE: The Render CMS server is NOT automatically redeployed from this
+  # workflow. autoDeploy is set to false in render.yaml to prevent the
+  # SQLite database from being wiped on every push.
+  #
+  # To redeploy the CMS server after genuine code changes:
+  #   1. Export a data backup from the CMS: Settings → Backup & Restore
+  #   2. Click "Manual Deploy" in the Render dashboard
+  #   3. Re-import the backup after the new version starts up
