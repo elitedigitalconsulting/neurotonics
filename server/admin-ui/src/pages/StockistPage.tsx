@@ -35,6 +35,8 @@ export default function StockistPage() {
       if (search) params.set('search', search);
       return api.get(`/cms/stockist-applications?${params}`);
     },
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
   });
 
   const updateMutation = useMutation<
