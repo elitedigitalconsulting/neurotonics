@@ -668,56 +668,38 @@ app.post('/stockist-application', async (req, res) => {
     safe.message         ? `\nMessage:\n${safe.message}`               : '',
   ].filter((line) => line !== '').join('\n');
 
+  // --- Save to DB first, respond immediately, email in background ---
   try {
-    await emailTransporter.sendMail({
-      from: `"Neurotonics Website" <${EMAIL_FROM}>`,
-      to: STOCKIST_TO_EMAIL,
-      replyTo: safe.email,
-      subject: `Stockist Application — ${safe.businessName}`,
-      text: textBody,
-      html: htmlBody,
-    });
-
-    // Persist to database regardless of email outcome so no submission is lost.
-    try {
-      stmts.createStockistApplication.run(
-        safe.fullName,
-        safe.businessName,
-        safe.abn,
-        safe.email,
-        safe.phone,
-        safe.businessAddress,
-        safe.industry,
-        safe.businessWebsite,
-        safe.message,
-      );
-    } catch (dbErr) {
-      console.error('Stockist application DB save failed:', dbErr);
-    }
-
-    return res.json({ success: true });
-  } catch (err) {
-    console.error('Stockist application email failed:', err);
-
-    // Still save to DB even if the email failed so the application isn't lost.
-    try {
-      stmts.createStockistApplication.run(
-        safe.fullName,
-        safe.businessName,
-        safe.abn,
-        safe.email,
-        safe.phone,
-        safe.businessAddress,
-        safe.industry,
-        safe.businessWebsite,
-        safe.message,
-      );
-    } catch (dbErr) {
-      console.error('Stockist application DB save failed:', dbErr);
-    }
-
-    return res.status(500).json({ error: 'Failed to send application. Please try again later.' });
+    stmts.createStockistApplication.run(
+      safe.fullName,
+      safe.businessName,
+      safe.abn,
+      safe.email,
+      safe.phone,
+      safe.businessAddress,
+      safe.industry,
+      safe.businessWebsite,
+      safe.message,
+    );
+  } catch (dbErr) {
+    console.error('Stockist application DB save failed:', dbErr);
+    return res.status(500).json({ error: 'Failed to save application. Please try again later.' });
   }
+
+  // Respond immediately — the client does not need to wait for SMTP.
+  res.json({ success: true });
+
+  // Send notification email asynchronously (does not affect the response).
+  emailTransporter.sendMail({
+    from: `"Neurotonics Website" <${EMAIL_FROM}>`,
+    to: STOCKIST_TO_EMAIL,
+    replyTo: safe.email,
+    subject: `Stockist Application — ${safe.businessName}`,
+    text: textBody,
+    html: htmlBody,
+  }).catch((err) => {
+    console.error('Stockist application email failed (application already saved to DB):', err);
+  });
 });
 
 

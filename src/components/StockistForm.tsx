@@ -268,60 +268,50 @@ export default function StockistForm() {
     };
 
     try {
-      if (WEB3FORMS_KEY) {
-        // Web3Forms handles the user-facing response (fast, ~1s).
-        const res = await fetchWithTimeout('https://api.web3forms.com/submit', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(web3formsPayload),
-        });
-        const data = await res.json().catch(() => ({}));
-
-        if (res.ok && data.success) {
-          // Web3Forms succeeded — also fire the Express backend for DB
-          // persistence. keepalive ensures it completes even if the user
-          // navigates away before the cold-start finishes.
-          if (API_URL) {
-            fetch(`${API_URL}/stockist-application`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(apiBody),
-              keepalive: true,
-            }).catch(() => {});
+      // Express backend is now the primary path: it saves to DB immediately
+      // and responds before the email is sent, so it's fast (~200ms warm).
+      // Web3Forms is the fallback for when the backend is unreachable.
+      if (API_URL) {
+        try {
+          const res = await fetchWithTimeout(`${API_URL}/stockist-application`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(apiBody),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data.success) {
+            setFormState('success');
+            setFields(EMPTY);
+            setErrors({});
+            return;
           }
-          setFormState('success');
-          setFields(EMPTY);
-          setErrors({});
-          return;
-        }
-
-        // Web3Forms failed — fall back to the API backend.
-        if (!API_URL) {
-          setServerError(data.message || data.error || 'Something went wrong. Please try again.');
-          setFormState('error');
-          return;
+          // Non-2xx response from the backend — fall through to Web3Forms.
+        } catch {
+          // Timeout or network error — fall through to Web3Forms.
+          if (!WEB3FORMS_KEY) {
+            throw new Error('Unable to reach the submission server. Please try again in a moment, or contact us directly at admin@elitedigitalconsulting.com.au.');
+          }
         }
       }
 
-      // API backend: primary when no Web3Forms key, fallback when Web3Forms fails.
-      // The server is pre-warmed on mount so it should respond quickly.
-      if (!API_URL) {
+      // Web3Forms fallback (no API_URL, or API unreachable).
+      if (!WEB3FORMS_KEY) {
         throw new Error('No submission method is configured. Please contact us directly at admin@elitedigitalconsulting.com.au.');
       }
 
-      const apiRes = await fetchWithTimeout(`${API_URL}/stockist-application`, {
+      const w3res = await fetchWithTimeout('https://api.web3forms.com/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(apiBody),
+        body: JSON.stringify(web3formsPayload),
       });
-      const apiData = await apiRes.json().catch(() => ({}));
+      const w3data = await w3res.json().catch(() => ({}));
 
-      if (apiRes.ok && apiData.success) {
+      if (w3res.ok && w3data.success) {
         setFormState('success');
         setFields(EMPTY);
         setErrors({});
       } else {
-        setServerError(apiData.message || apiData.error || 'Something went wrong. Please try again.');
+        setServerError(w3data.message || w3data.error || 'Something went wrong. Please try again.');
         setFormState('error');
       }
     } catch (err) {
