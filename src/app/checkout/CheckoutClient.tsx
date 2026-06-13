@@ -1,17 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
-import { loadStripe, type PaymentRequest } from '@stripe/stripe-js';
-import {
-  Elements,
-  PaymentElement,
-  PaymentRequestButtonElement,
-  useStripe,
-  useElements,
-} from '@stripe/react-stripe-js';
 import { useCart } from '@/lib/cart';
 import { withBasePath } from '@/lib/basePath';
 import {
@@ -23,46 +15,7 @@ import type { CheckoutContact, CheckoutAddress } from '@/lib/checkoutState';
 import { clearCheckoutData } from '@/lib/checkoutState';
 import { clearShipping } from '@/lib/shippingState';
 
-// ---------------------------------------------------------------------------
-// Stripe singleton — key fetched at runtime from the Express server so no
-// build-time env var is needed. Falls back to NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-// for local dev convenience.
-// ---------------------------------------------------------------------------
-
-const BUILD_TIME_PK = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
-
-// Module-level promise so loadStripe is only called once across all renders.
-let _stripePromise: ReturnType<typeof loadStripe> | null =
-  BUILD_TIME_PK ? loadStripe(BUILD_TIME_PK) : null;
-
-function initStripe(key: string): ReturnType<typeof loadStripe> {
-  if (!_stripePromise && key) {
-    _stripePromise = loadStripe(key);
-  }
-  return _stripePromise ?? Promise.resolve(null);
-}
-
-function getStripePromise(): ReturnType<typeof loadStripe> {
-  return _stripePromise ?? Promise.resolve(null);
-}
-
-const stripeAppearance = {
-  theme: 'stripe' as const,
-  variables: {
-    colorPrimary: '#0a195a',
-    colorBackground: '#ffffff',
-    colorText: '#111928',
-    colorDanger: '#ef4444',
-    fontFamily: '"Helvetica Neue", Helvetica, Arial, system-ui, sans-serif',
-    borderRadius: '8px',
-    spacingUnit: '4px',
-  },
-  rules: {
-    '.Input': { border: '1px solid #d1d5db', padding: '12px 14px' },
-    '.Input:focus': { border: '1px solid #0a195a', boxShadow: 'none' },
-    '.Label': { fontWeight: '500', fontSize: '13px', color: '#374151' },
-  },
-};
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 // ---------------------------------------------------------------------------
 // Constants (exported for tests)
@@ -294,125 +247,6 @@ function EmptyCartView() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Express checkout (Apple Pay / Google Pay via PaymentRequestButtonElement)
-// ---------------------------------------------------------------------------
-
-function ExpressCheckoutInner({
-  subtotal,
-  apiUrl,
-  onSuccess,
-}: {
-  subtotal: number;
-  apiUrl: string;
-  onSuccess: () => void;
-}) {
-  const stripe = useStripe();
-  const [paymentRequest, setPaymentRequest] = useState<PaymentRequest | null>(null);
-  const subtotalRef = useRef(subtotal);
-
-  useEffect(() => { subtotalRef.current = subtotal; }, [subtotal]);
-
-  useEffect(() => {
-    if (!stripe || !apiUrl) return;
-
-    const pr = stripe.paymentRequest({
-      country: 'AU',
-      currency: 'aud',
-      total: { label: 'Neurotonics Order', amount: Math.round(subtotal * 100) },
-      requestPayerName: true,
-      requestPayerEmail: true,
-      requestShipping: true,
-      shippingOptions: [
-        { id: 'standard', label: 'Standard Shipping', detail: '3\u20137 business days', amount: 1195 },
-        { id: 'express', label: 'Express Shipping', detail: '1\u20133 business days', amount: 1495 },
-      ],
-    });
-
-    pr.on('shippingoptionchange', (ev) => {
-      ev.updateWith({
-        status: 'success',
-        total: {
-          label: 'Neurotonics Order',
-          amount: Math.round(subtotalRef.current * 100) + ev.shippingOption.amount,
-        },
-      });
-    });
-
-    pr.on('paymentmethod', async (ev) => {
-      const shippingFee = (ev.shippingOption?.amount ?? 1195) / 100;
-      const amount = subtotalRef.current + shippingFee;
-      try {
-        const res = await fetch(`${apiUrl}/create-payment-intent`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount }),
-        });
-        if (!res.ok) { ev.complete('fail'); return; }
-        const data = await res.json() as { clientSecret?: string };
-        if (!data.clientSecret) { ev.complete('fail'); return; }
-        const { error, paymentIntent } = await stripe.confirmPayment({
-          clientSecret: data.clientSecret,
-          confirmParams: {
-            payment_method: ev.paymentMethod.id,
-            return_url: window.location.href.split('?')[0] + '?success=true',
-          },
-          redirect: 'if_required',
-        });
-        if (error || !paymentIntent) {
-          ev.complete('fail');
-        } else {
-          ev.complete('success');
-          onSuccess();
-        }
-      } catch {
-        ev.complete('fail');
-      }
-    });
-
-    pr.canMakePayment().then((result) => {
-      if (result) setPaymentRequest(pr);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stripe, apiUrl]); // subtotal intentionally not in deps — updated via ref
-
-  if (!paymentRequest) return null;
-
-  return (
-    <div className="mb-6">
-      <p className="text-center text-xs text-gray-400 mb-3 tracking-wide uppercase">Express checkout</p>
-      <PaymentRequestButtonElement
-        options={{
-          paymentRequest,
-          style: {
-            paymentRequestButton: { type: 'default', theme: 'dark', height: '48px' },
-          },
-        }}
-      />
-      <div className="flex items-center gap-3 my-6">
-        <div className="flex-1 h-px bg-gray-200" />
-        <span className="text-xs text-gray-400 uppercase tracking-widest">or</span>
-        <div className="flex-1 h-px bg-gray-200" />
-      </div>
-    </div>
-  );
-}
-
-function ExpressCheckoutSection({
-  subtotal,
-  apiUrl,
-  onSuccess,
-}: {
-  subtotal: number;
-  apiUrl: string;
-  onSuccess: () => void;
-}) {
-  return (
-    <Elements stripe={getStripePromise()}>
-      <ExpressCheckoutInner subtotal={subtotal} apiUrl={apiUrl} onSuccess={onSuccess} />
-    </Elements>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Order summary panel (right column)
@@ -535,125 +369,11 @@ function OrderSummaryPanel({
 }
 
 // ---------------------------------------------------------------------------
-// Payment section — must live inside <Elements> to access useStripe/useElements
+// ---------------------------------------------------------------------------
+// Main checkout content
+// ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 
-interface PaymentSectionProps {
-  total: number;
-  isLoading: boolean;
-  setIsLoading: (v: boolean) => void;
-  serverError: string;
-  setServerError: (v: string) => void;
-  onValidateAndGetData: () => {
-    valid: boolean;
-    contact: CheckoutContact;
-    address: CheckoutAddress;
-  };
-  onSuccess: () => void;
-}
-
-function PaymentSectionInner({
-  total,
-  isLoading,
-  setIsLoading,
-  serverError,
-  setServerError,
-  onValidateAndGetData,
-  onSuccess,
-}: PaymentSectionProps) {
-  const stripe = useStripe();
-  const elements = useElements();
-
-  const handlePay = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!stripe || !elements) return;
-
-    const { valid, contact, address } = onValidateAndGetData();
-    if (!valid) return;
-
-    setIsLoading(true);
-    setServerError('');
-
-    try {
-      const returnUrl =
-        window.location.href.split('?')[0] + '?redirect_status=succeeded';
-
-      const { error, paymentIntent } = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          return_url: returnUrl,
-          payment_method_data: {
-            billing_details: {
-              name: address.fullName,
-              email: contact.email,
-              phone: contact.phone,
-              address: {
-                line1: address.address1,
-                line2: address.address2 || undefined,
-                city: address.city,
-                state: address.state,
-                postal_code: address.postcode,
-                country: address.country,
-              },
-            },
-          },
-        },
-        redirect: 'if_required',
-      });
-
-      if (error) {
-        setServerError(error.message ?? 'Payment failed. Please try again.');
-        setIsLoading(false);
-      } else if (paymentIntent?.status === 'succeeded') {
-        onSuccess();
-      }
-      // For 3DS flows, Stripe redirects automatically — no extra handling needed
-    } catch {
-      setServerError('An unexpected error occurred. Please try again.');
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handlePay} id="payment-form" noValidate>
-      <PaymentElement
-        options={{
-          layout: 'tabs',
-          fields: { billingDetails: 'never' },
-        }}
-      />
-
-      {serverError && (
-        <div className="mt-4 p-3.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700" role="alert">
-          {serverError}
-        </div>
-      )}
-
-      <p className="mt-5 text-xs text-gray-400 leading-relaxed">
-        By clicking &ldquo;Pay now&rdquo;, you agree to our{' '}
-        <Link href="/terms" className="underline hover:text-gray-600">Terms of Service</Link>{' '}
-        and{' '}
-        <Link href="/privacy" className="underline hover:text-gray-600">Privacy Policy</Link>.
-        All transactions are secure and encrypted.
-      </p>
-
-      <button
-        type="submit"
-        disabled={!stripe || !elements || isLoading}
-        className="mt-4 w-full py-4 bg-brand-primary hover:bg-brand-primary-dark text-white font-semibold rounded-xl text-base transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-      >
-        {isLoading ? (
-          <>
-            <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            Processing\u2026
-          </>
-        ) : (
-          `Pay now  \u00b7  $${total.toFixed(2)} AUD`
-        )}
-      </button>
-    </form>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Main checkout content
@@ -669,7 +389,6 @@ function CheckoutContent({
   urlShippingId: string | null;
 }) {
   const { items, subtotal } = useCart();
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? '';
 
   // Form state
   const [contact, setContact] = useState<CheckoutContact>({ email: '', phone: '' });
@@ -708,35 +427,13 @@ function CheckoutContent({
   const [touched, setTouched] = useState<Set<string>>(new Set());
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
-  // Payment
-  const [isLoading, setIsLoading] = useState(false);
-  const [serverError, setServerError] = useState('');
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [paymentIntentFailed, setPaymentIntentFailed] = useState(false);
-  const [successRedirect, setSuccessRedirect] = useState(false);
-  // stripeReady: true once loadStripe() has been called with the real key.
-  // Elements must NOT render until this is true to avoid mounting with null stripe.
-  const [stripeReady, setStripeReady] = useState(() => !!_stripePromise);
+  // Payment — Stripe Checkout redirect
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [checkoutError, setCheckoutError] = useState('');
 
   // Derived
   const isAustralia = address.country === 'AU';
   const total = updateTotal(subtotal, selectedShipping?.fee ?? 0);
-
-  // Pre-fetch the Stripe publishable key from the server on mount so
-  // Stripe.js is fully loaded before the user selects a shipping method.
-  useEffect(() => {
-    if (_stripePromise || !apiUrl) return;
-    fetch(`${apiUrl}/stripe-config`)
-      .then((r) => r.json())
-      .then((data: { publishableKey?: string }) => {
-        if (data.publishableKey) {
-          initStripe(data.publishableKey);
-          setStripeReady(true);
-        }
-      })
-      .catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiUrl]);
 
   // Restore saved data on mount
   useEffect(() => {
@@ -826,48 +523,44 @@ function CheckoutContent({
     setErrors(validateCheckoutForm(contact, address, selectedShipping));
   }, [contact, address, selectedShipping, submitAttempted]);
 
-  // Create / refresh PaymentIntent when selected shipping or total changes
-  useEffect(() => {
-    if (!selectedShipping || !apiUrl) return;
-    let cancelled = false;
-    setClientSecret(null);
-    setPaymentIntentFailed(false);
-    fetch(`${apiUrl}/create-payment-intent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        items: items.map((i) => ({ name: i.name, quantity: i.quantity, price: i.price })),
-        amount: total,
-        shipping: selectedShipping,
-        customerEmail: contact.email || undefined,
-        customerPhone: contact.phone || undefined,
-        shippingAddress: address,
-      }),
-    })
-      .then((r) => r.json())
-      .then((data: { clientSecret?: string; publishableKey?: string }) => {
-        if (!cancelled) {
-          if (data.clientSecret) {
-            // Also initialise Stripe if not already done (key from PaymentIntent response)
-            if (data.publishableKey && !_stripePromise) {
-              initStripe(data.publishableKey);
-              setStripeReady(true);
-            }
-            setClientSecret(data.clientSecret);
-          } else {
-            setPaymentIntentFailed(true);
-          }
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setClientSecret(null);
-          setPaymentIntentFailed(true);
-        }
+  // Redirect to Stripe Checkout when user clicks Pay
+  const handleCheckout = useCallback(async () => {
+    const { valid, contact, address } = validateAndGetData();
+    if (!valid) return;
+
+    setIsCheckingOut(true);
+    setCheckoutError('');
+
+    const successUrl = `${window.location.href.split('?')[0]}?success=true`;
+    const cancelUrl  = `${window.location.href.split('?')[0]}?canceled=true`;
+
+    try {
+      const res = await fetch(`${API_URL}/create-checkout-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: items.map((i) => ({ name: i.name, quantity: i.quantity, price: i.price })),
+          shipping: selectedShipping,
+          customerEmail: contact.email || undefined,
+          customerPhone: contact.phone || undefined,
+          shippingAddress: address,
+          successUrl,
+          cancelUrl,
+        }),
       });
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedShipping?.id, total, apiUrl]);
+      const data = await res.json() as { url?: string; error?: string };
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setCheckoutError(data.error ?? 'Unable to start checkout. Please try again.');
+        setIsCheckingOut(false);
+      }
+    } catch {
+      setCheckoutError('A network error occurred. Please check your connection and try again.');
+      setIsCheckingOut(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, selectedShipping, contact, address, total]);
 
   // Field helpers
   const touchField = useCallback(
@@ -912,7 +605,7 @@ function CheckoutContent({
     return { valid, contact, address };
   }, [contact, address, selectedShipping]);
 
-  if (successRedirect) return <SuccessView />;
+  // successRedirect is no longer used (Stripe Checkout redirects via URL params)
 
   const isAU = address.country === 'AU';
 
@@ -964,14 +657,6 @@ function CheckoutContent({
             Back to cart
           </Link>
 
-          {/* Express checkout (Apple Pay / Google Pay) */}
-          {apiUrl && (
-            <ExpressCheckoutSection
-              subtotal={subtotal}
-              apiUrl={apiUrl}
-              onSuccess={() => setSuccessRedirect(true)}
-            />
-          )}
 
           {/* Contact section */}
           <section className="mb-8">
@@ -1085,7 +770,7 @@ function CheckoutContent({
                   aria-label="Street address"
                   className={inputCls(!!showError('address1'))}
                   autoComplete="address-line1"
-                  disabled={isLoading}
+                  disabled={isCheckingOut}
                 />
                 <span data-field-error={!!showError('address1') || undefined}>
                   <FieldError message={showError('address1')} />
@@ -1317,34 +1002,38 @@ function CheckoutContent({
               All transactions are secure and encrypted.
             </p>
 
-            {clientSecret && stripeReady ? (
-              <Elements
-                stripe={getStripePromise()}
-                options={{ clientSecret, appearance: stripeAppearance }}
-              >
-                <PaymentSectionInner
-                  total={total}
-                  isLoading={isLoading}
-                  setIsLoading={setIsLoading}
-                  serverError={serverError}
-                  setServerError={setServerError}
-                  onValidateAndGetData={validateAndGetData}
-                  onSuccess={() => setSuccessRedirect(true)}
-                />
-              </Elements>
-            ) : (
-              <div className="p-5 bg-gray-50 rounded-xl border border-gray-200 text-center">
-                {selectedShipping && apiUrl && !paymentIntentFailed ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-brand-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                    <p className="text-sm text-gray-500">Loading payment options…</p>
-                  </>
-                ) : paymentIntentFailed ? (
-                  <p className="text-sm text-red-500">Unable to load payment options. Please try selecting a different shipping method or refresh the page.</p>
-                ) : (
-                  <p className="text-sm text-gray-500">Select a shipping method above to continue.</p>
-                )}
+            {checkoutError && (
+              <div className="mb-4 p-3.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700" role="alert">
+                {checkoutError}
               </div>
+            )}
+
+            <p className="mb-4 text-xs text-gray-400 leading-relaxed">
+              By clicking &ldquo;Pay now&rdquo;, you agree to our{' '}
+              <Link href="/terms" className="underline hover:text-gray-600">Terms of Service</Link>{' '}
+              and{' '}
+              <Link href="/privacy" className="underline hover:text-gray-600">Privacy Policy</Link>.
+              All transactions are secure and encrypted.
+            </p>
+
+            <button
+              type="button"
+              disabled={!selectedShipping || isCheckingOut}
+              onClick={handleCheckout}
+              className="w-full py-4 bg-brand-primary hover:bg-brand-primary-dark text-white font-semibold rounded-xl text-base transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isCheckingOut ? (
+                <>
+                  <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Redirecting to payment…
+                </>
+              ) : (
+                `Pay now · $${total.toFixed(2)} AUD`
+              )}
+            </button>
+
+            {!selectedShipping && (
+              <p className="mt-2 text-xs text-gray-400 text-center">Select a shipping method above to continue.</p>
             )}
           </section>
 
