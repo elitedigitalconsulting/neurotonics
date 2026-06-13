@@ -8,16 +8,18 @@ import {
   Image,
   Users,
   LogOut,
+  Store,
 } from 'lucide-react';
 import { useAuth } from '../AuthContext';
 
 const NAV = [
-  { to: '/dashboard',  label: 'Dashboard',  icon: LayoutDashboard },
-  { to: '/orders',     label: 'Orders',      icon: ShoppingCart    },
-  { to: '/products',   label: 'Products',    icon: Package         },
-  { to: '/content',    label: 'Content',     icon: FileText        },
-  { to: '/media',      label: 'Media',       icon: Image           },
-  { to: '/settings',   label: 'Settings',    icon: Settings        },
+  { to: '/dashboard',  label: 'Dashboard',            icon: LayoutDashboard },
+  { to: '/orders',     label: 'Orders',                icon: ShoppingCart    },
+  { to: '/stockist',   label: 'Stockist Applications', icon: Store           },
+  { to: '/products',   label: 'Products',              icon: Package         },
+  { to: '/content',    label: 'Content',               icon: FileText        },
+  { to: '/media',      label: 'Media',                 icon: Image           },
+  { to: '/settings',   label: 'Settings',              icon: Settings        },
 ];
 
 const ADMIN_NAV = [
