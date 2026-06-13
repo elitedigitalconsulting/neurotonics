@@ -15,7 +15,7 @@ services:
     region: oregon          # closest free-tier region to Australia; change to 'singapore' if preferred
     plan: free
     rootDir: server
-    buildCommand: npm install && (npm run build:admin || echo "[warn] Admin UI build failed — using pre-committed assets")
+    buildCommand: npm install && npm rebuild better-sqlite3 && (npm run build:admin || echo "[warn] Admin UI build failed — using pre-committed assets")
     startCommand: node index.js
     healthCheckPath: /health
 
@@ -103,3 +103,8 @@ services:
       # -----------------------------------------------------------------------
       - key: NODE_ENV
         value: production
+
+      # Pin Node.js to v20 LTS — matches GitHub Actions and ensures
+      # better-sqlite3 native binaries are compatible across deploys.
+      - key: NODE_VERSION
+        value: "20"
