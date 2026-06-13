@@ -19,7 +19,7 @@ const path = require('path');
 const fs = require('fs');
 const { requireAuth, requireRole } = require('../auth');
 const { stmts } = require('../db');
-const { triggerRebuild } = require('../github');
+const { commitContentFile, triggerRebuild } = require('../github');
 
 const router = express.Router();
 
@@ -38,7 +38,9 @@ function readProducts() {
 function writeProducts(products) {
   // Keep single-object format if only one product (backward compat)
   const out = products.length === 1 ? products[0] : products;
-  fs.writeFileSync(PRODUCT_FILE, JSON.stringify(out, null, 2) + '\n', 'utf8');
+  const content = JSON.stringify(out, null, 2) + '\n';
+  fs.writeFileSync(PRODUCT_FILE, content, 'utf8');
+  return content;
 }
 
 function slugify(name) {
@@ -124,9 +126,11 @@ router.post('/', requireAuth, requireRole('admin'), (req, res) => {
 
     saveSnapshot(req.user.sub);
     products.push(newProduct);
-    writeProducts(products);
+    const createdContent = writeProducts(products);
 
-    triggerRebuild({ file: 'product.json', action: 'create', slug }).catch(console.error);
+    commitContentFile('src/content/product.json', createdContent, `chore(cms): add product ${slug} [skip ci]`)
+      .then(() => triggerRebuild({ file: 'product.json', action: 'create', slug }))
+      .catch(console.error);
 
     return res.status(201).json({ product: newProduct });
   } catch (err) {
@@ -153,9 +157,11 @@ router.put('/:slug', requireAuth, (req, res) => {
     const updated = { ...products[idx], ...data, slug: req.params.slug };
     saveSnapshot(req.user.sub);
     products[idx] = updated;
-    writeProducts(products);
+    const updatedContent = writeProducts(products);
 
-    triggerRebuild({ file: 'product.json', action: 'update', slug: req.params.slug }).catch(console.error);
+    commitContentFile('src/content/product.json', updatedContent, `chore(cms): update product ${req.params.slug} [skip ci]`)
+      .then(() => triggerRebuild({ file: 'product.json', action: 'update', slug: req.params.slug }))
+      .catch(console.error);
 
     return res.json({ product: updated });
   } catch (err) {
@@ -176,9 +182,11 @@ router.delete('/:slug', requireAuth, requireRole('admin'), (req, res) => {
     }
 
     saveSnapshot(req.user.sub);
-    writeProducts(filtered);
+    const deletedContent = writeProducts(filtered);
 
-    triggerRebuild({ file: 'product.json', action: 'delete', slug: req.params.slug }).catch(console.error);
+    commitContentFile('src/content/product.json', deletedContent, `chore(cms): delete product ${req.params.slug} [skip ci]`)
+      .then(() => triggerRebuild({ file: 'product.json', action: 'delete', slug: req.params.slug }))
+      .catch(console.error);
 
     return res.json({ success: true });
   } catch (err) {

@@ -14,7 +14,7 @@ const path = require('path');
 const fs = require('fs');
 const { requireAuth } = require('../auth');
 const { stmts } = require('../db');
-const { triggerRebuild } = require('../github');
+const { commitContentFile, triggerRebuild } = require('../github');
 
 const router = express.Router();
 
@@ -71,13 +71,18 @@ router.put('/:file', requireAuth, (req, res) => {
     // Save snapshot before overwriting
     stmts.saveSnapshot.run(req.params.file, serialised, req.user.sub);
 
-    // Write the file
-    fs.writeFileSync(filePath, serialised + '\n', 'utf8');
+    const fileContent = serialised + '\n';
 
-    // Trigger async rebuild (non-blocking — don't fail the response if it errors)
-    triggerRebuild({ file: req.params.file, updatedBy: req.user.email }).catch((err) => {
-      console.error('[cms-content] Rebuild trigger failed:', err.message);
-    });
+    // Write the file
+    fs.writeFileSync(filePath, fileContent, 'utf8');
+
+    // Commit the updated file to GitHub then trigger the rebuild workflow.
+    // Both steps are non-blocking — the HTTP response is returned immediately.
+    commitContentFile(`src/content/${req.params.file}`, fileContent, `chore(cms): update ${req.params.file} [skip ci]`)
+      .then(() => triggerRebuild({ file: req.params.file, updatedBy: req.user.email }))
+      .catch((err) => {
+        console.error('[cms-content] GitHub sync failed:', err.message);
+      });
 
     return res.json({ success: true, filename: req.params.file });
   } catch (err) {
