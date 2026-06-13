@@ -250,38 +250,38 @@ export default function StockistForm() {
     try {
       let res: Response | null = null;
 
-      if (API_URL) {
+      // Web3Forms is the fast primary path (~1s, no cold-start penalty).
+      if (WEB3FORMS_KEY) {
         try {
-          res = await fetchWithTimeout(`${API_URL}/stockist-application`, {
+          res = await fetchWithTimeout('https://api.web3forms.com/submit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              fullName: fields.fullName,
-              businessName: fields.businessName,
-              abn: fields.abn,
-              email: fields.email,
-              phone: fields.phone,
-              businessAddress,
-              industry: fields.industry,
-              businessWebsite: fields.businessWebsite,
-              message: fields.message,
-            }),
+            body: JSON.stringify(web3formsPayload),
           });
         } catch {
-          // API request failed (cold-start timeout, network error, server down).
-          // Fall through to Web3Forms if available, otherwise re-throw below.
-          if (!WEB3FORMS_KEY) {
-            throw new Error('Unable to reach the submission server. Please try again in a moment, or contact us directly at admin@elitedigitalconsulting.com.au.');
+          // Fall through to the API backend if Web3Forms fails.
+          if (!API_URL) {
+            throw new Error('Unable to submit. Please check your connection and try again, or contact us directly at admin@elitedigitalconsulting.com.au.');
           }
         }
       }
 
-      // Use Web3Forms if the API request was skipped or failed.
-      if (!res && WEB3FORMS_KEY) {
-        res = await fetchWithTimeout('https://api.web3forms.com/submit', {
+      // Use the API backend if Web3Forms is not configured or failed.
+      if (!res && API_URL) {
+        res = await fetchWithTimeout(`${API_URL}/stockist-application`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(web3formsPayload),
+          body: JSON.stringify({
+            fullName: fields.fullName,
+            businessName: fields.businessName,
+            abn: fields.abn,
+            email: fields.email,
+            phone: fields.phone,
+            businessAddress,
+            industry: fields.industry,
+            businessWebsite: fields.businessWebsite,
+            message: fields.message,
+          }),
         });
       }
 
