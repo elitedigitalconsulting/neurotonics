@@ -95,12 +95,7 @@ if (!stripe) {
 
 // Warn about missing webhook secret at startup
 if (!process.env.STRIPE_WEBHOOK_SECRET) {
-  console.warn('[webhook] ⚠️  STRIPE_WEBHOOK_SECRET not set — all Stripe webhooks will be rejected. Orders will NOT be created after payment. Set this in Render environment variables.');
-}
-
-// Warn about missing email config
-if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-  console.warn('[email] ⚠️  EMAIL_USER/EMAIL_PASS not set — order confirmation emails will not be sent.');
+  console.warn('[webhook] ⚠️  STRIPE_WEBHOOK_SECRET not set — Stripe webhooks will be rejected. Orders will NOT be created after payment.');
 }
 
 // ---------------------------------------------------------------------------
@@ -873,6 +868,14 @@ app.post('/cms/orders/sync-stripe', requireAuth, requireRole('admin'), async (re
     console.error('[sync-stripe] Error:', err.message);
     return res.status(500).json({ error: err.message });
   }
+});
+
+// ---------------------------------------------------------------------------
+// GET /email-status  — diagnostic endpoint (no auth required, safe to expose)
+// ---------------------------------------------------------------------------
+app.get('/email-status', (_req, res) => {
+  const { emailStatus } = require('./email');
+  res.json(emailStatus());
 });
 
 // ---------------------------------------------------------------------------

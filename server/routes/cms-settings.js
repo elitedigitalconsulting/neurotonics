@@ -1,7 +1,6 @@
 'use strict';
 
-const express    = require('express');
-const nodemailer = require('nodemailer');
+const express = require('express');
 const { requireAuth, requireRole } = require('../auth');
 const db = require('../db');
 
@@ -50,20 +49,23 @@ router.post('/test-email', requireAuth, requireRole('admin'), async (req, res) =
   const isValid  = atIndex > 0 && atIndex === trimmed.lastIndexOf('@') && atIndex < trimmed.length - 1;
   if (!isValid) return res.status(400).json({ error: 'Valid `to` email address required.' });
 
-  const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.EMAIL_PORT || '587', 10),
-    secure: process.env.EMAIL_SECURE === 'true',
-    auth: { user: process.env.EMAIL_USER || '', pass: process.env.EMAIL_PASS || '' },
-  });
+  const { sendEmail, emailStatus } = require('../email');
+  const status = emailStatus();
+  if (!status.configured) {
+    return res.status(503).json({
+      error: status.message,
+      fix: 'Set RESEND_API_KEY (recommended) or EMAIL_USER + EMAIL_PASS in Render environment variables.',
+    });
+  }
 
   try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM || process.env.EMAIL_USER || 'noreply@neurotonics.com.au',
-      to: trimmed, subject: 'Neurotonics CMS — Email Test',
+    await sendEmail({
+      to: trimmed,
+      subject: 'Neurotonics CMS — Email Test',
+      html: '<p>If you received this, your email configuration is working correctly.</p>',
       text: 'If you received this, your email configuration is working correctly.',
     });
-    return res.json({ success: true });
+    return res.json({ success: true, provider: status.provider });
   } catch (err) {
     return res.status(500).json({ error: `Email send failed: ${err.message}` });
   }

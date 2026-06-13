@@ -87,8 +87,25 @@ services:
         value: https://elitedigitalconsulting.github.io
 
       # -----------------------------------------------------------------------
-      # Email / SMTP (optional — used for stockist application notifications)
+      # Email — choose ONE provider:
+      #
+      # Option A (recommended): Resend — free 3,000 emails/month
+      #   Sign up at resend.com, add your domain (or use @resend.dev for testing),
+      #   then set RESEND_API_KEY and RESEND_FROM_EMAIL below.
+      #
+      # Option B: SMTP — Gmail App Password or any SMTP provider
+      #   Requires EMAIL_USER + EMAIL_PASS. For Gmail, enable 2FA and create
+      #   an App Password at myaccount.google.com/apppasswords
       # -----------------------------------------------------------------------
+
+      # Resend (Option A — recommended)
+      - key: RESEND_API_KEY
+        sync: false
+
+      - key: RESEND_FROM_EMAIL
+        value: Neurotonics <orders@neurotonics.com.au>
+
+      # SMTP (Option B — fallback if RESEND_API_KEY is not set)
       - key: EMAIL_HOST
         value: smtp.gmail.com
 
