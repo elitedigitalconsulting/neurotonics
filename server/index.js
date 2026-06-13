@@ -70,6 +70,11 @@ restoreFromGitHub().then(() => restoreIfEmpty()).catch(console.error);
   }
 })().catch(console.error);
 
+// Log DB path so it is immediately visible in Render logs — this makes it
+// easy to confirm the persistent disk is in use (path should be /data/...).
+console.log('[startup] DB_PATH:', process.env.DB_PATH || '(default: server/data/neurotonics.db)');
+console.log('[startup] DB_BACKUP_DIR:', process.env.DB_BACKUP_DIR || '(default: server/data/)');
+
 // Log table counts and start periodic backup after the bootstrap IIFE.
 setTimeout(() => {
   logTableCounts();

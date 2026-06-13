@@ -124,20 +124,20 @@ services:
         value: neurotonics
 
       # -----------------------------------------------------------------------
-      # Data backup directory (set to the persistent disk mount path if you
-      # add a disk below). The server writes a JSON backup of safe CMS data
-      # (stockist applications, users, settings) to this path and restores
-      # it on startup when the database is empty.
-      #
-      # Free tier: leave unset — backups are written to the ephemeral disk and
-      # survive server restarts but NOT redeploys. Export a manual backup from
-      # Settings → Backup & Restore before any intentional redeploy.
-      #
-      # Starter plan ($7/month): set DB_BACKUP_DIR=/data and uncomment the
-      # `disk:` block below so the backup survives redeploys too.
+      # Persistent storage paths — both point to the persistent disk so the
+      # SQLite database AND the JSON backup survive every redeploy.
       # -----------------------------------------------------------------------
+
+      # The live SQLite database file lives on the persistent disk.
+      # NEVER change this back to the default (server/data/) or the data
+      # will be wiped on the next deploy.
+      - key: DB_PATH
+        value: /data/neurotonics.db
+
+      # Backup files also go on the persistent disk so the GitHub auto-restore
+      # has a local copy as a faster fallback.
       - key: DB_BACKUP_DIR
-        value: ""
+        value: /data
 
       # -----------------------------------------------------------------------
       # Runtime
@@ -150,12 +150,3 @@ services:
       - key: NODE_VERSION
         value: "20"
 
-    # -------------------------------------------------------------------------
-    # Persistent disk — RECOMMENDED for production (requires Starter plan).
-    # Uncomment this block and set DB_BACKUP_DIR=/data above to make the
-    # database and backups survive server redeploys.
-    # -------------------------------------------------------------------------
-    # disk:
-    #   name: neurotonics-data
-    #   mountPath: /data
-    #   sizeGB: 1
