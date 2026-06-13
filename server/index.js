@@ -709,10 +709,19 @@ app.get('/health', (_req, res) => {
 
 // Stripe connectivity check — confirms the secret key is valid.
 // Returns only safe diagnostic info (no key material).
-// Returns the Stripe publishable key so the frontend can initialise Stripe.js
-// at runtime without a build-time env var.
+// Returns the Stripe publishable key + mode info for frontend initialisation.
 app.get('/stripe-config', (_req, res) => {
-  res.json({ publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || '' });
+  const secretKey = process.env.STRIPE_SECRET_KEY || '';
+  const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY || '';
+  const secretMode = secretKey.startsWith('sk_live_') ? 'live' : secretKey.startsWith('sk_test_') ? 'test' : 'unknown';
+  const pkMode = publishableKey.startsWith('pk_live_') ? 'live' : publishableKey.startsWith('pk_test_') ? 'test' : 'unknown';
+  const modeMatch = secretMode !== 'unknown' && pkMode !== 'unknown' && secretMode === pkMode;
+
+  if (!modeMatch && secretMode !== 'unknown' && pkMode !== 'unknown') {
+    console.error(`[stripe] KEY MODE MISMATCH: secret key is ${secretMode} but publishable key is ${pkMode}`);
+  }
+
+  res.json({ publishableKey, secretKeyMode: secretMode, publishableKeyMode: pkMode, modeMatch });
 });
 
 app.get('/stripe-health', async (_req, res) => {
