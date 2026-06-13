@@ -759,6 +759,105 @@ app.get('/stripe-health', async (_req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Admin: manually sync a Stripe Checkout Session into the CMS
+// POST /cms/orders/sync-stripe  { session_id: "cs_..." }
+// Requires CMS admin auth. Used to recover orders when webhook was not set up.
+// ---------------------------------------------------------------------------
+const { requireAuth, requireRole } = require('./auth');
+const { sendOrderConfirmation: _sendConf, sendAdminOrderAlert: _sendAlert } = require('./email');
+
+app.post('/cms/orders/sync-stripe', requireAuth, requireRole('admin'), async (req, res) => {
+  if (!stripe) return res.status(503).json({ error: 'Stripe not configured.' });
+
+  const { session_id } = req.body;
+  if (typeof session_id !== 'string' || !session_id.startsWith('cs_')) {
+    return res.status(400).json({ error: 'Invalid session_id. Must start with cs_' });
+  }
+
+  const { stmts: _stmts, getSetting, db: _db } = require('./db');
+  const { sendOrderConfirmation, sendAdminOrderAlert } = require('./email');
+  const stripeWebhookRouter = require('./routes/stripe-webhook');
+
+  // Check if already exists
+  const existing = _stmts.getOrderByStripeId.get(session_id);
+  if (existing) {
+    return res.json({ message: 'Order already exists.', order_id: existing.id, order_number: existing.order_number });
+  }
+
+  try {
+    // Retrieve full session from Stripe
+    const session = await stripe.checkout.sessions.retrieve(session_id, {
+      expand: ['line_items', 'customer_details'],
+    });
+
+    if (session.payment_status !== 'paid') {
+      return res.status(400).json({ error: `Session payment_status is "${session.payment_status}", not "paid".` });
+    }
+
+    const meta = session.metadata || {};
+
+    // Build items from line items
+    let items = [];
+    if (session.line_items && session.line_items.data) {
+      items = session.line_items.data
+        .filter(li => !((li.description || '').startsWith('Delivery')))
+        .map(li => ({
+          name:     li.description || 'Brain Boost 1000',
+          quantity: li.quantity,
+          price:    (li.amount_total || 0) / 100 / (li.quantity || 1),
+        }));
+    }
+    if (items.length === 0 && meta.itemsJson) {
+      try { items = JSON.parse(meta.itemsJson); } catch { /* ignore */ }
+    }
+
+    const shippingAddress = {
+      fullName: session.customer_details?.name || meta.addrName || '',
+      address1: session.customer_details?.address?.line1 || meta.addrLine1 || '',
+      address2: session.customer_details?.address?.line2 || meta.addrLine2 || '',
+      city:     session.customer_details?.address?.city  || meta.addrCity  || '',
+      state:    session.customer_details?.address?.state || meta.addrState || '',
+      postcode: session.customer_details?.address?.postal_code || meta.addrPostcode || '',
+      country:  session.customer_details?.address?.country || meta.addrCountry || '',
+    };
+
+    const shippingFee = meta.shippingFee ? parseInt(meta.shippingFee, 10) / 100 : 0;
+    const shipping = { zone: meta.shippingZone || '', name: meta.shippingOption || '', fee: shippingFee };
+    const total    = session.amount_total / 100;
+    const subtotal = total - shippingFee;
+
+    const customerEmail = session.customer_email || session.customer_details?.email || '';
+    const customerName  = session.customer_details?.name || meta.addrName || '';
+    const customerPhone = meta.customerPhone || session.customer_details?.phone || '';
+    const notifEmail    = getSetting('notification_email') || '';
+
+    const currentSeq = parseInt(getSetting('order_number_sequence') || '1000', 10);
+    const nextSeq    = currentSeq + 1;
+    require('./db').setSetting('order_number_sequence', String(nextSeq));
+    const orderNumber = `ORD-${nextSeq}`;
+
+    const result = _stmts.createOrder.run(
+      orderNumber, session_id, customerName, customerEmail, customerPhone,
+      JSON.stringify(shippingAddress), JSON.stringify(items),
+      JSON.stringify(shipping), subtotal, total,
+      'processing', 'paid', notifEmail
+    );
+
+    const order = _stmts.getOrderById.get(result.lastInsertRowid);
+    console.log(`[sync-stripe] Order ${orderNumber} created from session ${session_id}`);
+
+    // Send emails (non-blocking)
+    sendOrderConfirmation(order).catch(err => console.error('[sync-stripe] Confirmation email:', err.message));
+    sendAdminOrderAlert(order).catch(err => console.error('[sync-stripe] Admin alert:', err.message));
+
+    return res.json({ success: true, order_number: orderNumber, order_id: order.id });
+  } catch (err) {
+    console.error('[sync-stripe] Error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Start server
 // ---------------------------------------------------------------------------
 const PORT = parseInt(process.env.PORT || '4000', 10);
