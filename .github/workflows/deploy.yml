@@ -56,9 +56,14 @@ jobs:
     name: Trigger Render redeploy
     runs-on: ubuntu-latest
     needs: deploy
-    if: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
     steps:
       - name: Redeploy Render service
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
         run: |
-          curl -s --fail-with-body \
-            "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" | cat
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "RENDER_DEPLOY_HOOK_URL secret not set — skipping Render deploy."
+            exit 0
+          fi
+          echo "Triggering Render deploy..."
+          curl -sf "$RENDER_DEPLOY_HOOK_URL" && echo "Deploy triggered." || echo "Deploy hook failed (non-fatal)."
