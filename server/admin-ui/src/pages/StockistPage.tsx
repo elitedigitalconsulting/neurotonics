@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronRight, Search, Download, CheckCircle } from 'lucide-react';
+import { ChevronRight, Search, Download, CheckCircle, AlertTriangle } from 'lucide-react';
 import { api, getAccessToken, type StockistApplication } from '../api';
 import { stockistStatusBadge } from '../components/Badge';
 import { toast } from '../components/Toast';
+
+interface BackupStatus {
+  githubDataRepo?: { ready: boolean; repo: string; repoUrl: string };
+}
 
 const STATUSES = ['', 'new', 'reviewing', 'approved', 'rejected'];
 
@@ -18,6 +22,12 @@ function fmtDateTime(s: string) {
 export default function StockistPage() {
   const qc = useQueryClient();
   const [page, setPage]               = useState(1);
+
+  const { data: backupStatus } = useQuery<BackupStatus>({
+    queryKey: ['backup-status'],
+    queryFn: () => api.get('/cms/backup/status'),
+    staleTime: 60_000,
+  });
   const [status, setStatus]           = useState('');
   const [search, setSearch]           = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -82,14 +92,27 @@ export default function StockistPage() {
     <div className="flex h-full">
       {/* List panel */}
       <div className="flex-1 p-6 min-w-0">
-        {/* Persistence status */}
-        <div className="flex items-start gap-2 bg-green-50 border border-green-200 rounded-lg px-4 py-2.5 mb-4 text-xs text-green-800">
-          <CheckCircle size={14} className="shrink-0 mt-0.5 text-green-500" />
-          <span>
-            Applications are automatically backed up to a private GitHub repository after every submission.
-            They will reappear after any Render redeploy without any manual steps.
-          </span>
-        </div>
+        {/* Persistence status — conditional on actual GitHub backup health */}
+        {backupStatus?.githubDataRepo?.ready ? (
+          <div className="flex items-start gap-2 bg-green-50 border border-green-200 rounded-lg px-4 py-2.5 mb-4 text-xs text-green-800">
+            <CheckCircle size={14} className="shrink-0 mt-0.5 text-green-500" />
+            <span>
+              Applications are automatically backed up to{' '}
+              <a href={backupStatus.githubDataRepo.repoUrl} target="_blank" rel="noopener noreferrer" className="underline font-medium">
+                {backupStatus.githubDataRepo.repo}
+              </a>{' '}
+              after every submission. They reappear after any Render redeploy with no manual steps.
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 mb-4 text-xs text-amber-800">
+            <AlertTriangle size={14} className="shrink-0 mt-0.5 text-amber-500" />
+            <span>
+              GitHub auto-backup is initialising — applications are saved locally. Go to{' '}
+              <strong>Settings → Backup &amp; Restore</strong> to check status.
+            </span>
+          </div>
+        )}
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-xl font-semibold text-gray-900">Stockist Applications</h1>

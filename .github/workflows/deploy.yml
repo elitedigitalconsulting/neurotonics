@@ -64,11 +64,37 @@ jobs:
       - id: deployment
         uses: actions/deploy-pages@v4
 
-  # NOTE: The Render CMS server is NOT automatically redeployed from this
-  # workflow. autoDeploy is set to false in render.yaml to prevent the
-  # SQLite database from being wiped on every push.
-  #
-  # To redeploy the CMS server after genuine code changes:
-  #   1. Export a data backup from the CMS: Settings → Backup & Restore
-  #   2. Click "Manual Deploy" in the Render dashboard
-  #   3. Re-import the backup after the new version starts up
+  deploy-render:
+    name: Deploy CMS server (server/ files changed)
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      # Only redeploy Render when files under server/ actually changed.
+      # CMS content commits use [skip ci] so deploy.yml is already skipped
+      # for them; this extra check guards against frontend-only pushes.
+      # With autoDeploy: false in render.yaml, Render ignores GitHub pushes
+      # directly — this hook is the only way a deploy is triggered.
+      - name: Check if server files changed
+        id: server_changed
+        run: |
+          if git diff --name-only HEAD~1 HEAD | grep -q "^server/"; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Trigger Render redeploy
+        if: steps.server_changed.outputs.changed == 'true'
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "RENDER_DEPLOY_HOOK_URL not set — skipping Render deploy."
+            exit 0
+          fi
+          echo "server/ files changed — triggering Render deploy..."
+          curl -sf "$RENDER_DEPLOY_HOOK_URL" && echo "Render deploy triggered." || echo "Deploy hook call failed (non-fatal)."
