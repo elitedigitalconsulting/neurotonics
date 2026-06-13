@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronRight, Search, Download } from 'lucide-react';
+import { ChevronRight, Search, Download, AlertTriangle } from 'lucide-react';
 import { api, getAccessToken, type StockistApplication } from '../api';
 import { stockistStatusBadge } from '../components/Badge';
 import { toast } from '../components/Toast';
@@ -82,6 +82,14 @@ export default function StockistPage() {
     <div className="flex h-full">
       {/* List panel */}
       <div className="flex-1 p-6 min-w-0">
+        {/* Persistence reminder */}
+        <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 mb-4 text-xs text-amber-800">
+          <AlertTriangle size={14} className="shrink-0 mt-0.5 text-amber-500" />
+          <span>
+            Applications are stored in the server database and are automatically backed up every 5 minutes.
+            Before any manual Render redeploy, go to <strong>Settings → Backup &amp; Restore</strong> and download a backup first.
+          </span>
+        </div>
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-xl font-semibold text-gray-900">Stockist Applications</h1>

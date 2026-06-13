@@ -311,4 +311,25 @@ function setSetting(key, value) {
   stmts.setSetting.run(key, String(value));
 }
 
-module.exports = { db, stmts, getSetting, getAllSettings, setSetting };
+/**
+ * Log the current row counts for all tables.
+ * Call this on startup to make data-loss events immediately visible in logs.
+ */
+function logTableCounts() {
+  const tables = [
+    'users', 'orders', 'stockist_applications',
+    'content_snapshots', 'settings', 'password_reset_tokens',
+  ];
+  const counts = {};
+  for (const t of tables) {
+    try {
+      counts[t] = db.prepare(`SELECT COUNT(*) as n FROM ${t}`).get().n;
+    } catch {
+      counts[t] = 'ERROR';
+    }
+  }
+  console.log('[db] Table row counts on startup:', JSON.stringify(counts));
+  return counts;
+}
+
+module.exports = { db, stmts, getSetting, getAllSettings, setSetting, logTableCounts };

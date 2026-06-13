@@ -19,6 +19,18 @@ services:
     startCommand: node index.js
     healthCheckPath: /health
 
+    # CRITICAL: autoDeploy MUST stay false.
+    #
+    # The CMS content-save workflow commits JSON changes to the main branch
+    # (with [skip ci] to skip GitHub Actions). Without autoDeploy: false,
+    # Render would redeploy on every CMS save, wiping the SQLite database
+    # and deleting all stockist applications, orders, and users.
+    #
+    # Server code deploys are triggered only via the Render dashboard
+    # "Manual Deploy" button, which gives the admin time to download a
+    # data backup first (Settings → Backup & Restore in the CMS).
+    autoDeploy: false
+
     envVars:
       # -----------------------------------------------------------------------
       # Required — set these in the Render dashboard after deploying
@@ -105,6 +117,22 @@ services:
         value: neurotonics
 
       # -----------------------------------------------------------------------
+      # Data backup directory (set to the persistent disk mount path if you
+      # add a disk below). The server writes a JSON backup of safe CMS data
+      # (stockist applications, users, settings) to this path and restores
+      # it on startup when the database is empty.
+      #
+      # Free tier: leave unset — backups are written to the ephemeral disk and
+      # survive server restarts but NOT redeploys. Export a manual backup from
+      # Settings → Backup & Restore before any intentional redeploy.
+      #
+      # Starter plan ($7/month): set DB_BACKUP_DIR=/data and uncomment the
+      # `disk:` block below so the backup survives redeploys too.
+      # -----------------------------------------------------------------------
+      - key: DB_BACKUP_DIR
+        value: ""
+
+      # -----------------------------------------------------------------------
       # Runtime
       # -----------------------------------------------------------------------
       - key: NODE_ENV
@@ -114,3 +142,13 @@ services:
       # better-sqlite3 native binaries are compatible across deploys.
       - key: NODE_VERSION
         value: "20"
+
+    # -------------------------------------------------------------------------
+    # Persistent disk — RECOMMENDED for production (requires Starter plan).
+    # Uncomment this block and set DB_BACKUP_DIR=/data above to make the
+    # database and backups survive server redeploys.
+    # -------------------------------------------------------------------------
+    # disk:
+    #   name: neurotonics-data
+    #   mountPath: /data
+    #   sizeGB: 1

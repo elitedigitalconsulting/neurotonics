@@ -14,6 +14,7 @@
 const express = require('express');
 const { requireAuth } = require('../auth');
 const { db, stmts } = require('../db');
+const { writeBackup } = require('../backup');
 
 const router = express.Router();
 
@@ -56,12 +57,17 @@ router.get('/', requireAuth, (req, res) => {
       total        = stmts.countStockistApplications.get().count;
     }
 
+    console.log(
+      `[cms-stockist] LIST page=${page} limit=${limit} status=${status || 'all'} ` +
+      `search=${search || 'none'} → ${applications.length}/${total} records returned`
+    );
+
     return res.json({
       applications,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     });
   } catch (err) {
-    console.error('[cms-stockist] List error:', err.message);
+    console.error('[cms-stockist] List error:', err.message, err.stack);
     return res.status(500).json({ error: 'Failed to fetch applications.' });
   }
 });
@@ -72,6 +78,7 @@ router.get('/', requireAuth, (req, res) => {
 router.get('/export.csv', requireAuth, (req, res) => {
   try {
     const rows = stmts.getAllStockistApplications.all();
+    console.log(`[cms-stockist] CSV export: ${rows.length} records`);
 
     const headers = [
       'ID', 'Date', 'Full Name', 'Business Name', 'ABN', 'Email', 'Phone',
@@ -112,7 +119,7 @@ router.get('/export.csv', requireAuth, (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     return res.send('\uFEFF' + lines.join('\r\n'));
   } catch (err) {
-    console.error('[cms-stockist] CSV export error:', err.message);
+    console.error('[cms-stockist] CSV export error:', err.message, err.stack);
     return res.status(500).json({ error: 'Failed to export applications.' });
   }
 });
@@ -125,7 +132,10 @@ router.get('/:id', requireAuth, (req, res) => {
   if (!Number.isInteger(id)) return res.status(400).json({ error: 'Invalid application ID.' });
 
   const application = stmts.getStockistApplicationById.get(id);
-  if (!application) return res.status(404).json({ error: 'Application not found.' });
+  if (!application) {
+    console.warn(`[cms-stockist] GET #${id} — not found`);
+    return res.status(404).json({ error: 'Application not found.' });
+  }
 
   return res.json({ application });
 });
@@ -138,7 +148,10 @@ router.patch('/:id', requireAuth, (req, res) => {
   if (!Number.isInteger(id)) return res.status(400).json({ error: 'Invalid application ID.' });
 
   const application = stmts.getStockistApplicationById.get(id);
-  if (!application) return res.status(404).json({ error: 'Application not found.' });
+  if (!application) {
+    console.warn(`[cms-stockist] PATCH #${id} — not found`);
+    return res.status(404).json({ error: 'Application not found.' });
+  }
 
   const status = req.body.status !== undefined ? req.body.status : application.status;
   const notes  = req.body.notes  !== undefined ? String(req.body.notes).slice(0, 2000) : application.notes;
@@ -151,6 +164,17 @@ router.patch('/:id', requireAuth, (req, res) => {
 
   stmts.updateStockistApplication.run(status, notes, id);
   const updated = stmts.getStockistApplicationById.get(id);
+
+  console.log(
+    `[cms-stockist] PATCH #${id} (${application.business_name}) ` +
+    `status: ${application.status} → ${updated.status} | ` +
+    `notes updated: ${notes !== application.notes}`
+  );
+
+  // Write a backup after every status or notes change so in-progress
+  // review work is preserved across restarts.
+  setImmediate(() => writeBackup());
+
   return res.json({ application: updated });
 });
 
