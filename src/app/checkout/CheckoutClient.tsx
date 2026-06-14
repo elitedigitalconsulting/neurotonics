@@ -308,22 +308,41 @@ function ChevronDown() {
 
 function SuccessView({ sessionId }: { sessionId: string | null }) {
   const { items, subtotal, clearCart } = useCart();
-
-  useEffect(() => {
-    let cancelled = false;
+  const [orderSnapshot] = useState(() => {
+    const checkout = loadCheckoutData();
+    const shipping = loadShipping();
     const itemSnapshot = items.map((item) => ({
       name: item.name,
       price: item.price,
       quantity: item.quantity,
     }));
-    const subtotalSnapshot = subtotal;
+    const shippingFee = shipping?.option.fee ?? 0;
+    return {
+      checkout,
+      shipping,
+      items: itemSnapshot,
+      subtotal,
+      shippingFee,
+      total: subtotal + shippingFee,
+    };
+  });
+  const confirmationRef = sessionId ? sessionId.slice(-8).toUpperCase() : null;
+  const hasOrderDetails = Boolean(
+    confirmationRef ||
+    orderSnapshot.checkout?.contact.email ||
+    orderSnapshot.checkout?.address.fullName ||
+    orderSnapshot.items.length,
+  );
+
+  useEffect(() => {
+    let cancelled = false;
 
     async function notifyThenClear() {
       try {
         await sendWeb3FormsPurchaseNotification({
           sessionId,
-          items: itemSnapshot,
-          subtotal: subtotalSnapshot,
+          items: orderSnapshot.items,
+          subtotal: orderSnapshot.subtotal,
         });
       } catch (err) {
         console.error('[checkout] Purchase notification fallback failed:', err);
@@ -340,50 +359,97 @@ function SuccessView({ sessionId }: { sessionId: string | null }) {
     return () => {
       cancelled = true;
     };
-  }, [clearCart, items, sessionId, subtotal]);
+  }, [clearCart, orderSnapshot, sessionId]);
 
   return (
-    <main className="bg-gray-50 min-h-screen flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 max-w-md w-full text-center">
-        <div className="w-20 h-20 mx-auto rounded-full bg-green-100 flex items-center justify-center mb-6">
-          <svg className="w-10 h-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Order Confirmed!</h1>
-        <p className="text-gray-500 text-sm mb-6">
-          Thank you for your order. A confirmation email has been sent to you with your order details.
-        </p>
-        <div className="bg-gray-50 rounded-xl p-4 mb-6 text-sm text-left space-y-2">
-          <div className="flex items-start gap-3">
-            <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-            <span className="text-gray-700">Confirmation email sent to your inbox</span>
+    <main className="bg-gray-50 min-h-screen px-4 py-10 sm:py-16">
+      <div className="max-w-5xl mx-auto grid lg:grid-cols-[1.1fr_0.9fr] gap-6 lg:gap-10">
+        <section className="space-y-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full border-2 border-blue-500 text-blue-600 flex items-center justify-center flex-shrink-0">
+                <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div>
+                {confirmationRef && (
+                  <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">Confirmation #{confirmationRef}</p>
+                )}
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Thank You for Your Purchase</h1>
+                <p className="mt-2 text-sm text-gray-600">
+                  Payment successful. Your order is confirmed and we&apos;ll email your receipt and updates shortly.
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="flex items-start gap-3">
-            <svg className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-            </svg>
-            <span className="text-gray-700">Your order is being prepared for dispatch</span>
+
+          {hasOrderDetails && (
+            <div id="order-details" className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
+              <h2 className="text-lg font-bold text-gray-900 mb-5">Order details</h2>
+              <div className="grid sm:grid-cols-2 gap-6 text-sm">
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Contact information</h3>
+                  <p className="text-gray-600">{orderSnapshot.checkout?.contact.email || '(not provided)'}</p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Payment status</h3>
+                  <p className="text-green-700 font-medium">Paid successfully</p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Shipping address</h3>
+                  <p className="text-gray-600 whitespace-pre-line">{formatAddress(orderSnapshot.checkout?.address).replace(/, /g, '\n')}</p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Shipping method</h3>
+                  <p className="text-gray-600">{orderSnapshot.shipping?.option.name || 'Standard'}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Link href="/" className="inline-flex justify-center px-5 py-3 bg-brand-primary hover:bg-brand-primary-dark text-white font-semibold rounded-xl transition-colors text-sm">
+              Continue shopping
+            </Link>
+            {hasOrderDetails && (
+              <a href="#order-details" className="inline-flex justify-center px-5 py-3 border border-gray-300 hover:bg-white text-gray-700 font-semibold rounded-xl transition-colors text-sm">
+                View order details
+              </a>
+            )}
           </div>
-          <div className="flex items-start gap-3">
-            <svg className="w-5 h-5 text-purple-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="text-gray-700">Tracking info will be emailed when your order ships</span>
+        </section>
+
+        <aside className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 h-fit">
+          <h2 className="text-lg font-bold text-gray-900 mb-5">Order summary</h2>
+          <div className="space-y-4">
+            {orderSnapshot.items.length > 0 ? orderSnapshot.items.map((item) => (
+              <div key={item.name} className="flex justify-between gap-4 text-sm">
+                <div>
+                  <p className="font-medium text-gray-900">{item.name}</p>
+                  <p className="text-gray-500">Qty {item.quantity}</p>
+                </div>
+                <p className="font-medium text-gray-900">{fmtAud(item.price * item.quantity)}</p>
+              </div>
+            )) : (
+              <p className="text-sm text-gray-500">Order summary will be included in your confirmation email.</p>
+            )}
+            <div className="border-t border-gray-200 pt-4 space-y-2 text-sm">
+              <div className="flex justify-between text-gray-600">
+                <span>Subtotal</span>
+                <span>{fmtAud(orderSnapshot.subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-gray-600">
+                <span>Shipping</span>
+                <span>{fmtAud(orderSnapshot.shippingFee)}</span>
+              </div>
+              <div className="flex justify-between text-base font-bold text-gray-900 pt-2">
+                <span>Total</span>
+                <span>{fmtAud(orderSnapshot.total)}</span>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <Link href="/"
-            className="flex-1 py-2.5 bg-brand-primary hover:bg-brand-primary-dark text-white font-medium rounded-xl transition-colors text-sm">
-            Continue Shopping
-          </Link>
-          <a href="mailto:support@neurotonics.com.au"
-            className="flex-1 py-2.5 border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium rounded-xl transition-colors text-sm">
-            Contact Support
-          </a>
-        </div>
+        </aside>
       </div>
     </main>
   );
@@ -719,8 +785,10 @@ function CheckoutContent({
     setIsCheckingOut(true);
     setCheckoutError('');
 
-    const successUrl = `${window.location.href.split('?')[0]}?success=true&session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl  = `${window.location.href.split('?')[0]}?canceled=true`;
+    const checkoutUrl = new URL(window.location.href);
+    const successPath = checkoutUrl.pathname.replace(/\/checkout\/?$/, '/success');
+    const successUrl = `${checkoutUrl.origin}${successPath}?success=true&session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl  = `${checkoutUrl.origin}${checkoutUrl.pathname}?canceled=true`;
 
     const controller = new AbortController();
     const timeoutId  = setTimeout(() => controller.abort(), 30000);
