@@ -1,23 +1,7 @@
-const {
+import {
   buildCheckoutPricing,
   getServerShippingOptions,
-} = require('../../server/checkout-pricing') as {
-  buildCheckoutPricing: (input: {
-    items: Array<{ name: string; quantity: number; price?: number }>;
-    shipping: { id: string; fee?: number };
-    shippingAddress: { postcode?: string; country: string };
-  }) => {
-    error?: string;
-    subtotalCents?: number;
-    shippingFeeCents?: number;
-    items?: Array<{ name: string; quantity: number; priceCents: number }>;
-  };
-  getServerShippingOptions: (
-    postcode: string,
-    country: string,
-    subtotalCents: number,
-  ) => Array<{ id: string; fee: number; zone: string }>;
-};
+} from '../../server/checkout-pricing';
 
 describe('server checkout pricing', () => {
   it('uses catalog prices instead of browser-supplied item prices', () => {
