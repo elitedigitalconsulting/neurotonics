@@ -1,69 +1,38 @@
-# Cursor rules for Neurotonics
+# Cursor Autonomous Ecommerce Mode
 
-Start with these files before broad exploration:
-- `docs/project-context.md`
-- `docs/architecture.md`
-- `docs/database.md`
-- `docs/current-state.md`
-- the specific source files related to the task
+Always read `docs/system-context.md` first. Treat it as the single source of
+truth for stack, architecture, and data flow. Do not re-infer the stack or scan
+the repo to rediscover facts already documented there.
 
-Avoid full-repo scans unless the user explicitly asks or the task cannot be
-scoped another way. Prefer narrow `rg`, `Glob`, and direct file reads. Do not
-inspect generated folders, dependency folders, build output, runtime uploads, or
-SQLite data unless debugging that exact artifact.
+## Workflow for every task
 
-## Stack
+Use this sequence:
+1. Plan: state the smallest viable approach.
+2. Files: list only files expected to change.
+3. Implementation: edit the minimal set of files, then validate.
 
-- Storefront: Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4,
-  static export to GitHub Pages at `/neurotonics`.
-- Server: Node 20, Express 4, CommonJS, Stripe, `better-sqlite3`, JWT auth,
-  email, CMS REST API.
-- Admin: Vite React app in `server/admin-ui/`, built into
-  `server/public/admin/`.
-- No Prisma schema is present. The actual DB schema is in `server/db.js`.
+If the user asks for direct implementation, keep the plan brief and proceed.
 
-## Local commands
+## Search and context rules
 
-Root storefront:
-```bash
-npm ci
-npm run dev
-npm run build
-npm run lint
-npm test
-```
+- Avoid full-repo scans unless absolutely necessary.
+- Prefer `docs/system-context.md`, `docs/task-log.md`, then narrow reads of
+  task-relevant files.
+- Use targeted `rg`/Glob queries; avoid loading generated files, dependencies,
+  runtime data, uploads, SQLite files, or build output.
+- Reuse existing components, utilities, routes, and data helpers before adding
+  new abstractions.
 
-CMS server:
-```bash
-cd server
-npm ci
-npm run dev
-npm start
-npm run build:admin
-```
+## Implementation rules
 
-Admin UI source:
-```bash
-cd server/admin-ui
-npm ci
-npm run dev
-npm run build
-npm run lint
-```
-
-## Editing rules
-
-- Read relevant local code first; keep changes scoped.
-- For Next.js changes, remember this repo uses Next 16. If dependencies are
-  installed and framework behavior is uncertain, consult
-  `node_modules/next/dist/docs/`.
-- Static export constraints matter: avoid server-only Next features for public
-  pages unless deployment changes too.
-- Keep Stripe secrets server-side. Do not trust client totals for payments.
+- Keep changes scoped to the task; avoid unrelated refactors.
+- Storefront uses Next.js App Router with static export. Server Actions are not
+  currently part of the production flow; prefer them only if the deployment mode
+  supports them. Otherwise reuse the existing Express/CMS routes.
+- No Prisma or NextAuth is present. DB schema is in `server/db.js`; auth is
+  custom Express JWT/cookie auth in `server/auth.js`.
+- Keep Stripe secrets server-side and never trust client totals for payments.
 - Stripe webhooks must stay mounted before `express.json()`.
 - CMS routes should use `requireAuth`; admin-only routes should use
   `requireRole("admin")`.
-- Prefer source edits in `server/admin-ui/src/`; do not hand-edit built admin
-  assets unless intentionally updating generated output.
-- Never commit `.env*` secrets, `server/data/`, SQLite files, backups, uploads,
-  `.next/`, `out/`, `dist/`, `build/`, or `node_modules/`.
+- Prefer editing `server/admin-ui/src/` over generated `server/public/admin/`.
