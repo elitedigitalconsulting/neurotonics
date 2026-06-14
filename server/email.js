@@ -176,18 +176,40 @@ function buildDefaultAdminAlertHtml(vars) {
 </div>`.trim();
 }
 
+function buildDefaultOrderConfirmationHtml(vars) {
+  return `
+<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a202c;">
+  <div style="background:#1a2e4a;padding:24px;border-radius:8px 8px 0 0;">
+    <h1 style="color:#fff;margin:0;font-size:22px;">Order Confirmed</h1>
+    <p style="color:#94a3b8;margin:6px 0 0;font-size:14px;">${vars.orderNumber}</p>
+  </div>
+  <div style="background:#f7fafc;padding:24px;border-radius:0 0 8px 8px;">
+    <p>Hi ${vars.customerName},</p>
+    <p>Thank you for your order. We're preparing it now and will send tracking information once it ships.</p>
+    <h2 style="font-size:16px;margin-bottom:8px;">Order Summary</h2>
+    ${vars.itemsTable}
+    <p><strong>Shipping:</strong> ${vars.shippingLabel} - ${vars.shippingFee}</p>
+    <p style="font-size:18px;font-weight:bold;margin-top:12px;">Total: ${vars.total}</p>
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;">
+    <p style="font-size:12px;color:#718096;">
+      Questions? Email us at <a href="mailto:support@neurotonics.com.au" style="color:#1a2e4a;">support@neurotonics.com.au</a><br>
+      Neurotonics - Always read the label and follow the directions for use.
+    </p>
+  </div>
+</div>`.trim();
+}
+
 // ---------------------------------------------------------------------------
 // sendOrderConfirmation — sends to customer
 // ---------------------------------------------------------------------------
 async function sendOrderConfirmation(order) {
   if (!order.customer_email) return;
   const template = getSetting('order_confirmation_template') || '';
-  if (!template) return;
 
   let items = []; try { items = JSON.parse(order.items); } catch { /* ignore */ }
   let shipping = {}; try { shipping = JSON.parse(order.shipping); } catch { /* ignore */ }
 
-  const html = interpolate(template, {
+  const vars = {
     customerName:    escapeHtml(order.customer_name || 'Valued Customer'),
     customerEmail:   escapeHtml(order.customer_email),
     orderNumber:     escapeHtml(order.order_number || '#' + order.id),
@@ -196,7 +218,9 @@ async function sendOrderConfirmation(order) {
     shippingFee:     fmtAud(shipping.fee || 0),
     total:           fmtAud(order.total || 0),
     stripeSessionId: escapeHtml(order.stripe_session_id || ''),
-  });
+  };
+
+  const html = template ? interpolate(template, vars) : buildDefaultOrderConfirmationHtml(vars);
 
   await sendEmail({
     to:      order.customer_email,

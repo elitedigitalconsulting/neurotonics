@@ -17,6 +17,7 @@ import { clearShipping, loadShipping } from '@/lib/shippingState';
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 const WEB3FORMS_KEY = process.env.NEXT_PUBLIC_WEB3FORMS_KEY ?? '';
 const PURCHASE_NOTIFICATION_TIMEOUT_MS = 5_000;
+const CHECKOUT_SESSION_TIMEOUT_MS = 20_000;
 
 function subscribeSearchParams(listener: () => void) {
   if (typeof window === 'undefined') return () => {};
@@ -193,9 +194,9 @@ function formatAddress(address: CheckoutAddress | undefined): string {
   ].filter(Boolean).join(', ') || '(not provided)';
 }
 
-async function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = PURCHASE_NOTIFICATION_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), PURCHASE_NOTIFICATION_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(url, { ...options, signal: controller.signal });
   } finally {
@@ -706,7 +707,7 @@ function CheckoutContent({
     const cancelUrl  = `${window.location.href.split('?')[0]}?canceled=true`;
 
     try {
-      const res = await fetch(`${API_URL}/create-checkout-session`, {
+      const res = await fetchWithTimeout(`${API_URL}/create-checkout-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -718,7 +719,7 @@ function CheckoutContent({
           successUrl,
           cancelUrl,
         }),
-      });
+      }, CHECKOUT_SESSION_TIMEOUT_MS);
       const data = await res.json() as { url?: string; error?: string };
       if (data.url) {
         window.location.href = data.url;
