@@ -174,8 +174,15 @@ async function handleCheckoutCompleted(session) {
 
   reduceInventory(items);
   console.log(`[webhook] Email triggered for order ${orderNumber}`);
-  sendOrderConfirmation(order).catch(err => console.error('[webhook] Confirmation email:', err.message));
-  sendAdminOrderAlert(order).catch(err => console.error('[webhook] Admin alert:', err.message));
+  sendOrderConfirmation(order)
+    .then((sent) => {
+      if (sent) console.log(`[webhook] Buyer confirmation email completed for order ${orderNumber}`);
+      else console.warn(`[webhook] Buyer confirmation email skipped for order ${orderNumber}: missing customer email`);
+    })
+    .catch(err => console.error(`[webhook] Buyer confirmation email failed for order ${orderNumber}:`, err.message));
+  sendAdminOrderAlert(order)
+    .then(() => console.log(`[webhook] Admin alert email completed for order ${orderNumber}`))
+    .catch(err => console.error(`[webhook] Admin alert email failed for order ${orderNumber}:`, err.message));
 }
 
 // ---------------------------------------------------------------------------
@@ -218,8 +225,15 @@ async function handlePaymentSucceeded(paymentIntent) {
   console.log(`[webhook] Order ${orderNumber} created — $${total} AUD`);
   reduceInventory(items);
   console.log(`[webhook] Email triggered for order ${orderNumber}`);
-  sendOrderConfirmation(order).catch(err => console.error('[webhook] Confirmation email:', err.message));
-  sendAdminOrderAlert(order).catch(err => console.error('[webhook] Admin alert:', err.message));
+  sendOrderConfirmation(order)
+    .then((sent) => {
+      if (sent) console.log(`[webhook] Buyer confirmation email completed for order ${orderNumber}`);
+      else console.warn(`[webhook] Buyer confirmation email skipped for order ${orderNumber}: missing customer email`);
+    })
+    .catch(err => console.error(`[webhook] Buyer confirmation email failed for order ${orderNumber}:`, err.message));
+  sendAdminOrderAlert(order)
+    .then(() => console.log(`[webhook] Admin alert email completed for order ${orderNumber}`))
+    .catch(err => console.error(`[webhook] Admin alert email failed for order ${orderNumber}:`, err.message));
 }
 
 // ---------------------------------------------------------------------------

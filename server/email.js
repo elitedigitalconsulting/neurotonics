@@ -25,6 +25,8 @@ function getProvider() {
 }
 
 const EMAIL_FROM = process.env.EMAIL_FROM || process.env.EMAIL_USER || 'noreply@neurotonics.com.au';
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'admin@elitedigitalconsulting.com.au';
+const DEFAULT_STORE_URL = 'https://elitedigitalconsulting.github.io/neurotonics';
 
 // Warn at startup so the issue is visible in Render logs
 if (!getProvider()) {
@@ -78,8 +80,9 @@ async function sendViaSmtp({ to, subject, html, text, replyTo }) {
 async function sendEmail({ to, subject, html, text, replyTo }) {
   const provider = getProvider();
   if (!provider) {
-    console.warn(`[email] Skipping email to ${to}: no provider configured (set RESEND_API_KEY or EMAIL_USER+EMAIL_PASS in Render).`);
-    return;
+    const message = 'No email provider configured (set RESEND_API_KEY or EMAIL_USER+EMAIL_PASS in Render).';
+    console.error(`[email] ✗ Failed to send "${subject}" to ${to}: ${message}`);
+    throw new Error(message);
   }
   try {
     if (provider === 'resend') {
@@ -158,6 +161,167 @@ function resolveAdminNotificationEmail() {
   );
 }
 
+function resolveStoreUrl() {
+  const configured = process.env.STORE_URL || process.env.PUBLIC_STORE_URL || '';
+  if (configured) return configured.replace(/\/$/, '');
+  const origin = (process.env.CLIENT_ORIGINS || '').split(',').map(s => s.trim()).find(Boolean);
+  if (!origin) return DEFAULT_STORE_URL;
+  const cleanOrigin = origin.replace(/\/$/, '');
+  return cleanOrigin.includes('github.io') && !cleanOrigin.endsWith('/neurotonics')
+    ? `${cleanOrigin}/neurotonics`
+    : cleanOrigin;
+}
+
+function formatAddressLines(addr) {
+  if (!addr || typeof addr !== 'object') return [];
+  return [
+    addr.fullName,
+    addr.company,
+    addr.address1,
+    addr.address2,
+    [addr.city, addr.state, addr.postcode].filter(Boolean).join(' '),
+    addr.country,
+  ].filter(Boolean);
+}
+
+function buildOrderItemsTable(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return '<p style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#64748b;margin:0;">No items</p>';
+  }
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+      ${items.map((item) => {
+        const name = escapeHtml(item.name || 'Unknown product');
+        const quantity = item.quantity || 1;
+        const lineTotal = fmtAud((item.price || 0) * quantity);
+        return `
+          <tr>
+            <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111827;">
+              <strong>${name}</strong> &times; ${quantity}
+            </td>
+            <td align="right" style="padding:12px 0;border-bottom:1px solid #e5e7eb;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111827;white-space:nowrap;">${lineTotal}</td>
+          </tr>
+        `;
+      }).join('')}
+    </table>
+  `.trim();
+}
+
+function buildAddressHtml(lines) {
+  if (!lines.length) return '<span style="color:#64748b;">Not provided</span>';
+  return lines.map(line => escapeHtml(line)).join('<br>');
+}
+
+function buildDefaultOrderConfirmationHtml(vars) {
+  return `
+<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#f4f7fb;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f7fb;margin:0;padding:24px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb;">
+            <tr>
+              <td style="background:#1a2e4a;padding:28px 32px;font-family:Arial,Helvetica,sans-serif;color:#ffffff;">
+                <div style="font-size:24px;font-weight:700;letter-spacing:0.2px;">Neurotonics</div>
+                <div style="font-size:13px;color:#cbd5e1;margin-top:6px;">Order Number: ${vars.orderNumber}</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:32px;font-family:Arial,Helvetica,sans-serif;color:#111827;">
+                <h1 style="font-size:24px;line-height:1.25;margin:0 0 12px;color:#111827;">Thank you for your order!</h1>
+                <p style="font-size:15px;line-height:1.6;margin:0 0 24px;color:#475569;">We're getting your order ready to be shipped. We will notify you when it has been sent.</p>
+                <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 28px;">
+                  <tr>
+                    <td style="padding:0 10px 10px 0;">
+                      <a href="${vars.orderUrl}" style="display:inline-block;background:#1a2e4a;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;border-radius:8px;padding:12px 18px;">View Your Order</a>
+                    </td>
+                    <td style="padding:0 0 10px 0;">
+                      <a href="${vars.storeUrl}" style="display:inline-block;background:#f59e0b;color:#111827;text-decoration:none;font-weight:700;font-size:14px;border-radius:8px;padding:12px 18px;">Visit Our Store</a>
+                    </td>
+                  </tr>
+                </table>
+
+                <h2 style="font-size:18px;margin:0 0 12px;color:#111827;">Order Summary</h2>
+                ${vars.itemsTable}
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:16px 0 28px;">
+                  <tr><td style="padding:5px 0;font-size:14px;color:#475569;">Subtotal:</td><td align="right" style="padding:5px 0;font-size:14px;color:#111827;">${vars.subtotal}</td></tr>
+                  <tr><td style="padding:5px 0;font-size:14px;color:#475569;">Shipping:</td><td align="right" style="padding:5px 0;font-size:14px;color:#111827;">${vars.shipping}</td></tr>
+                  <tr><td style="padding:5px 0;font-size:14px;color:#475569;">Taxes:</td><td align="right" style="padding:5px 0;font-size:14px;color:#111827;">${vars.tax}</td></tr>
+                  <tr><td style="padding:12px 0 0;font-size:16px;font-weight:700;color:#111827;border-top:1px solid #e5e7eb;">Total:</td><td align="right" style="padding:12px 0 0;font-size:16px;font-weight:700;color:#111827;border-top:1px solid #e5e7eb;">${vars.total}</td></tr>
+                </table>
+
+                <h2 style="font-size:18px;margin:0 0 12px;color:#111827;">Customer Information</h2>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                  <tr>
+                    <td valign="top" width="50%" style="padding:0 12px 18px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#475569;">
+                      <strong style="display:block;color:#111827;margin-bottom:6px;">Shipping Address:</strong>
+                      ${vars.shippingAddressHtml}
+                    </td>
+                    <td valign="top" width="50%" style="padding:0 0 18px 12px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#475569;">
+                      <strong style="display:block;color:#111827;margin-bottom:6px;">Billing Address:</strong>
+                      ${vars.billingAddressHtml}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td valign="top" width="50%" style="padding:0 12px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#475569;">
+                      <strong style="display:block;color:#111827;margin-bottom:6px;">Payment:</strong>
+                      ${vars.paymentMethod}
+                    </td>
+                    <td valign="top" width="50%" style="padding:0 0 0 12px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#475569;">
+                      <strong style="display:block;color:#111827;margin-bottom:6px;">Shipping Method:</strong>
+                      ${vars.shippingMethod}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="background:#f8fafc;padding:22px 32px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.6;color:#64748b;">
+                If you have any questions, reply to this email or contact us at
+                <a href="mailto:${SUPPORT_EMAIL}" style="color:#1a2e4a;text-decoration:underline;">${SUPPORT_EMAIL}</a>.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`.trim();
+}
+
+function buildOrderConfirmationText(vars) {
+  return [
+    `Neurotonics`,
+    `Order Number: ${vars.orderNumber}`,
+    '',
+    'Thank you for your order!',
+    "We're getting your order ready to be shipped. We will notify you when it has been sent.",
+    '',
+    `View Your Order: ${vars.orderUrl}`,
+    `Visit Our Store: ${vars.storeUrl}`,
+    '',
+    'Order Summary',
+    vars.itemsText,
+    `Subtotal: ${vars.subtotal}`,
+    `Shipping: ${vars.shipping}`,
+    `Taxes: ${vars.tax}`,
+    `Total: ${vars.total}`,
+    '',
+    'Customer Information',
+    'Shipping Address:',
+    vars.shippingAddressText,
+    '',
+    'Billing Address:',
+    vars.billingAddressText,
+    '',
+    `Payment: ${vars.paymentMethod}`,
+    `Shipping Method: ${vars.shippingMethod}`,
+    '',
+    `If you have any questions, reply to this email or contact us at ${SUPPORT_EMAIL}`,
+  ].join('\n');
+}
+
 function buildDefaultAdminAlertHtml(vars) {
   return `
 <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a202c;">
@@ -176,58 +340,61 @@ function buildDefaultAdminAlertHtml(vars) {
 </div>`.trim();
 }
 
-function buildDefaultOrderConfirmationHtml(vars) {
-  return `
-<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a202c;">
-  <div style="background:#1a2e4a;padding:24px;border-radius:8px 8px 0 0;">
-    <h1 style="color:#fff;margin:0;font-size:22px;">Order Confirmed</h1>
-    <p style="color:#94a3b8;margin:6px 0 0;font-size:14px;">${vars.orderNumber}</p>
-  </div>
-  <div style="background:#f7fafc;padding:24px;border-radius:0 0 8px 8px;">
-    <p>Hi ${vars.customerName},</p>
-    <p>Thank you for your order. We're preparing it now and will send tracking information once it ships.</p>
-    <h2 style="font-size:16px;margin-bottom:8px;">Order Summary</h2>
-    ${vars.itemsTable}
-    <p><strong>Shipping:</strong> ${vars.shippingLabel} - ${vars.shippingFee}</p>
-    <p style="font-size:18px;font-weight:bold;margin-top:12px;">Total: ${vars.total}</p>
-    <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;">
-    <p style="font-size:12px;color:#718096;">
-      Questions? Email us at <a href="mailto:support@neurotonics.com.au" style="color:#1a2e4a;">support@neurotonics.com.au</a><br>
-      Neurotonics - Always read the label and follow the directions for use.
-    </p>
-  </div>
-</div>`.trim();
-}
-
 // ---------------------------------------------------------------------------
 // sendOrderConfirmation — sends to customer
 // ---------------------------------------------------------------------------
 async function sendOrderConfirmation(order) {
-  if (!order.customer_email) return;
-  const template = getSetting('order_confirmation_template') || '';
-
+  if (!order.customer_email) {
+    console.warn(`[email] Skipping order confirmation: order ${order.order_number || order.id || '(unknown)'} has no customer_email.`);
+    return false;
+  }
   let items = []; try { items = JSON.parse(order.items); } catch { /* ignore */ }
   let shipping = {}; try { shipping = JSON.parse(order.shipping); } catch { /* ignore */ }
+  let address = {}; try { address = JSON.parse(order.shipping_address); } catch { /* ignore */ }
+
+  const orderNumber = order.order_number || String(order.id || 'unknown');
+  const storeUrl = resolveStoreUrl();
+  const orderUrl = process.env.ORDER_STATUS_URL
+    ? process.env.ORDER_STATUS_URL.replace(/\{\{orderNumber\}\}/g, encodeURIComponent(orderNumber))
+    : storeUrl;
+  const shippingFee = shipping.fee || 0;
+  const subtotal = order.subtotal || Math.max(0, (order.total || 0) - shippingFee);
+  const tax = order.tax || 0;
+  const shippingAddressLines = formatAddressLines(address);
+  const billingAddressLines = shippingAddressLines;
 
   const vars = {
-    customerName:    escapeHtml(order.customer_name || 'Valued Customer'),
-    customerEmail:   escapeHtml(order.customer_email),
-    orderNumber:     escapeHtml(order.order_number || '#' + order.id),
-    itemsTable:      buildItemsTable(items),
-    shippingLabel:   escapeHtml(shipping.name || shipping.zone || 'Standard'),
-    shippingFee:     fmtAud(shipping.fee || 0),
-    total:           fmtAud(order.total || 0),
-    stripeSessionId: escapeHtml(order.stripe_session_id || ''),
+    customerName:        escapeHtml(order.customer_name || address.fullName || 'Valued Customer'),
+    customerEmail:       escapeHtml(order.customer_email),
+    orderNumber:         escapeHtml(orderNumber),
+    orderUrl:            escapeHtml(orderUrl),
+    storeUrl:            escapeHtml(storeUrl),
+    itemsTable:          buildOrderItemsTable(items),
+    itemsText:           buildItemsList(items),
+    subtotal:            fmtAud(subtotal),
+    shipping:            fmtAud(shippingFee),
+    tax:                 fmtAud(tax),
+    total:               fmtAud(order.total || 0),
+    shippingMethod:      escapeHtml(shipping.name || shipping.zone || 'Standard'),
+    paymentMethod:       escapeHtml(order.payment_method || 'Paid via Stripe'),
+    shippingAddressHtml: buildAddressHtml(shippingAddressLines),
+    billingAddressHtml:  buildAddressHtml(billingAddressLines),
+    shippingAddressText: shippingAddressLines.join('\n') || 'Not provided',
+    billingAddressText:  billingAddressLines.join('\n') || 'Not provided',
+    stripeSessionId:     escapeHtml(order.stripe_session_id || ''),
   };
 
-  const html = template ? interpolate(template, vars) : buildDefaultOrderConfirmationHtml(vars);
+  const html = buildDefaultOrderConfirmationHtml(vars);
+  const text = buildOrderConfirmationText(vars);
+  const subject = `Order Confirmation - Order #${orderNumber.replace(/^#/, '')}`;
 
   await sendEmail({
     to:      order.customer_email,
-    subject: `Order Confirmed — ${order.order_number || '#' + order.id}`,
+    subject,
     html,
-    text: `Hi ${order.customer_name},\n\nYour order ${order.order_number || '#' + order.id} has been confirmed.\nTotal: ${fmtAud(order.total)}\n\nThank you for choosing Neurotonics!`,
+    text,
   });
+  return true;
 }
 
 // ---------------------------------------------------------------------------
