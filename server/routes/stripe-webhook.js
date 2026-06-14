@@ -126,14 +126,16 @@ async function handleCheckoutCompleted(session) {
     } catch { /* ignore */ }
   }
 
+  const checkoutShipping = session.shipping_details || {};
+  const checkoutAddress = checkoutShipping.address || session.customer_details?.address || {};
   const shippingAddress = {
-    fullName: meta.addrName     || session.customer_details?.name || '',
-    address1: meta.addrLine1    || session.customer_details?.address?.line1 || '',
-    address2: meta.addrLine2    || session.customer_details?.address?.line2 || '',
-    city:     meta.addrCity     || session.customer_details?.address?.city || '',
-    state:    meta.addrState    || session.customer_details?.address?.state || '',
-    postcode: meta.addrPostcode || session.customer_details?.address?.postal_code || '',
-    country:  meta.addrCountry  || session.customer_details?.address?.country || '',
+    fullName: checkoutShipping.name || session.customer_details?.name || meta.addrName || '',
+    address1: checkoutAddress.line1 || meta.addrLine1 || '',
+    address2: checkoutAddress.line2 || meta.addrLine2 || '',
+    city:     checkoutAddress.city || meta.addrCity || '',
+    state:    checkoutAddress.state || meta.addrState || '',
+    postcode: checkoutAddress.postal_code || meta.addrPostcode || '',
+    country:  checkoutAddress.country || meta.addrCountry || '',
   };
 
   const shippingFee   = meta.shippingFee ? parseInt(meta.shippingFee, 10) / 100 : 0;
