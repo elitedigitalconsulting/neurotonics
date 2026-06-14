@@ -285,6 +285,19 @@ function getStripeShippingCountries(country) {
   return /^[A-Z]{2}$/.test(code) ? [code] : DEFAULT_STRIPE_SHIPPING_COUNTRIES;
 }
 
+function buildStripeAddress(addrMeta) {
+  const country = String(addrMeta.addrCountry || '').toUpperCase();
+  if (!addrMeta.addrLine1 || !addrMeta.addrCity || !/^[A-Z]{2}$/.test(country)) return null;
+  return {
+    line1: addrMeta.addrLine1,
+    ...(addrMeta.addrLine2 && { line2: addrMeta.addrLine2 }),
+    city: addrMeta.addrCity,
+    ...(addrMeta.addrState && { state: addrMeta.addrState }),
+    ...(addrMeta.addrPostcode && { postal_code: addrMeta.addrPostcode }),
+    country,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // POST /create-checkout-session
 // ---------------------------------------------------------------------------
@@ -391,17 +404,32 @@ app.post('/create-checkout-session', async (req, res) => {
 
   // --- Create Stripe Checkout session ---
   try {
+    const stripeAddress = buildStripeAddress(addrMeta);
+    const customer = safeEmail && stripeAddress
+      ? await stripe.customers.create({
+          email: safeEmail,
+          ...(addrMeta.addrName && { name: addrMeta.addrName }),
+          ...(safePhone && { phone: safePhone }),
+          address: stripeAddress,
+          shipping: {
+            name: addrMeta.addrName || safeEmail,
+            ...(safePhone && { phone: safePhone }),
+            address: stripeAddress,
+          },
+        })
+      : null;
+
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       line_items: lineItems,
       success_url: safeSuccessUrl,
       cancel_url: safeCancelUrl,
       // Pre-fill customer email so they don't have to retype it on Stripe's page
-      ...(safeEmail && { customer_email: safeEmail }),
+      ...(customer ? { customer: customer.id } : safeEmail && { customer_email: safeEmail }),
       // Stripe Checkout automatically surfaces Apple Pay on Safari/iOS and
       // Google Pay on Chrome/Android via dashboard payment-method settings.
       // Collect customer email for order confirmation
-      customer_creation: 'always',
+      ...(!customer && { customer_creation: 'always' }),
       shipping_address_collection: {
         allowed_countries: getStripeShippingCountries(shippingAddress?.country),
       },

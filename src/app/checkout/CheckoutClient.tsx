@@ -621,7 +621,6 @@ function CheckoutContent({
   // this the first request can take 50+ seconds.
   useEffect(() => {
     if (API_URL) fetch(`${API_URL}/health`).catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Restore saved data on mount

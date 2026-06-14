@@ -16,9 +16,6 @@ const benefits = [
   'Natural & Vegan',
 ];
 
-const STOCK_PERCENT = productContent.stockPercent;
-const UNITS_LEFT    = productContent.unitsLeft;
-
 export default function ProductShowcase() {
   return (
     <section className="relative py-20 sm:py-28 overflow-hidden bg-gradient-to-br from-[#0d1f6e] via-[#0a195a] to-[#071440]">
