@@ -140,7 +140,19 @@ async function handleCheckoutCompleted(session) {
   const shipping      = { zone: meta.shippingZone || '', name: meta.shippingOption || '', fee: shippingFee };
   const total         = session.amount_total / 100;
   const subtotal      = meta.subtotal ? parseInt(meta.subtotal, 10) / 100 : total - shippingFee;
-  const customerEmail = session.customer_email || session.customer_details?.email || meta.customerEmail || '';
+  let customerEmail = session.customer_email || session.customer_details?.email || '';
+  if (!customerEmail) {
+    try {
+      const fullSession = await getStripe().checkout.sessions.retrieve(stripeId, { expand: ['customer'] });
+      const customer = fullSession.customer;
+      customerEmail =
+        fullSession.customer_email ||
+        fullSession.customer_details?.email ||
+        (customer && typeof customer === 'object' ? customer.email || '' : '');
+    } catch (err) {
+      console.error('[webhook] Unable to retrieve checkout customer email:', err.message);
+    }
+  }
   const customerName  = session.customer_details?.name || meta.addrName || '';
   const customerPhone = meta.customerPhone || session.customer_details?.phone || '';
   const notifEmail    = (await db.getSetting('notification_email')) || '';
