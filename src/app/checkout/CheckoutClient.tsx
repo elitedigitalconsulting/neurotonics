@@ -409,9 +409,9 @@ function SuccessView({ sessionId }: { sessionId: string | null }) {
           )}
 
           <div className="flex flex-col sm:flex-row gap-3">
-            <Link href="/" className="inline-flex justify-center px-5 py-3 bg-brand-primary hover:bg-brand-primary-dark text-white font-semibold rounded-xl transition-colors text-sm">
+            <a href={withBasePath('/')} className="inline-flex justify-center px-5 py-3 bg-brand-primary hover:bg-brand-primary-dark text-white font-semibold rounded-xl transition-colors text-sm">
               Continue shopping
-            </Link>
+            </a>
             {hasOrderDetails && (
               <a href="#order-details" className="inline-flex justify-center px-5 py-3 border border-gray-300 hover:bg-white text-gray-700 font-semibold rounded-xl transition-colors text-sm">
                 View order details
