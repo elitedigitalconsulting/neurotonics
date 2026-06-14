@@ -84,6 +84,7 @@ router.post('/', express.raw({ type: 'application/json' }), (req, res) => {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
+  console.log(`[webhook] Received ${event.type} (${event.id || 'no-id'})`);
   res.json({ received: true });
   handleEvent(event).catch(err => console.error('[webhook] Event error:', err));
 });
@@ -91,6 +92,7 @@ router.post('/', express.raw({ type: 'application/json' }), (req, res) => {
 async function handleEvent(event) {
   switch (event.type) {
     case 'checkout.session.completed': await handleCheckoutCompleted(event.data.object); break;
+    case 'checkout.session.async_payment_succeeded': await handleCheckoutCompleted(event.data.object); break;
     case 'payment_intent.succeeded':   await handlePaymentSucceeded(event.data.object);  break;
     case 'payment_intent.payment_failed': await handlePaymentFailed(event.data.object);  break;
     default: break;
@@ -104,6 +106,11 @@ async function handleCheckoutCompleted(session) {
   const stripeId = session.id;
   const existing = await db.get('SELECT id FROM orders WHERE stripe_session_id = ?', [stripeId]);
   if (existing) { console.log(`[webhook] Duplicate ${stripeId} — skipping`); return; }
+  if (session.payment_status && session.payment_status !== 'paid') {
+    console.log(`[webhook] Payment not confirmed for ${stripeId} (${session.payment_status}) — skipping email`);
+    return;
+  }
+  console.log(`[webhook] Payment confirmed for checkout session ${stripeId}`);
 
   const meta = session.metadata || {};
 
@@ -148,6 +155,7 @@ async function handleCheckoutCompleted(session) {
   console.log(`[webhook] Order ${orderNumber} created — ${customerEmail} — $${total} AUD`);
 
   reduceInventory(items);
+  console.log(`[webhook] Email triggered for order ${orderNumber}`);
   sendOrderConfirmation(order).catch(err => console.error('[webhook] Confirmation email:', err.message));
   sendAdminOrderAlert(order).catch(err => console.error('[webhook] Admin alert:', err.message));
 }
@@ -156,6 +164,14 @@ async function handleCheckoutCompleted(session) {
 // payment_intent.succeeded
 // ---------------------------------------------------------------------------
 async function handlePaymentSucceeded(paymentIntent) {
+  console.log(`[webhook] Payment confirmed for payment intent ${paymentIntent.id}`);
+  const checkoutSessions = await getStripe().checkout.sessions.list({ payment_intent: paymentIntent.id, limit: 1 });
+  const checkoutSession = checkoutSessions.data[0];
+  if (checkoutSession) {
+    await handleCheckoutCompleted(checkoutSession);
+    return;
+  }
+
   const stripeId = paymentIntent.id;
   const existing = await db.get('SELECT id FROM orders WHERE stripe_session_id = ?', [stripeId]);
   if (existing) { console.log(`[webhook] Duplicate PI ${stripeId} — skipping`); return; }
@@ -183,6 +199,7 @@ async function handlePaymentSucceeded(paymentIntent) {
   const order = await db.get('SELECT * FROM orders WHERE id = ?', [Number(result.lastInsertRowid)]);
   console.log(`[webhook] Order ${orderNumber} created — $${total} AUD`);
   reduceInventory(items);
+  console.log(`[webhook] Email triggered for order ${orderNumber}`);
   sendOrderConfirmation(order).catch(err => console.error('[webhook] Confirmation email:', err.message));
   sendAdminOrderAlert(order).catch(err => console.error('[webhook] Admin alert:', err.message));
 }
