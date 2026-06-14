@@ -403,6 +403,7 @@ app.post('/create-checkout-session', async (req, res) => {
         shippingFee: String(shippingFeeCents),
         shippingZone: shipping?.zone || 'none',
         shippingOption: shipping?.name || 'none',
+        ...(safeEmail && { customerEmail: safeEmail }),
         ...(safePhone && { customerPhone: safePhone }),
         ...addrMeta,
       },
@@ -850,7 +851,7 @@ app.post('/cms/orders/sync-stripe', requireAuth, requireRole('admin'), async (re
     const total    = session.amount_total / 100;
     const subtotal = total - shippingFee;
 
-    const customerEmail = session.customer_email || session.customer_details?.email || '';
+    const customerEmail = session.customer_email || session.customer_details?.email || meta.customerEmail || '';
     const customerName  = session.customer_details?.name || meta.addrName || '';
     const customerPhone = meta.customerPhone || session.customer_details?.phone || '';
     const notifEmail    = getSetting('notification_email') || '';
