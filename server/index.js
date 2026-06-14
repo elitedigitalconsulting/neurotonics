@@ -851,7 +851,7 @@ app.post('/cms/orders/sync-stripe', requireAuth, requireRole('admin'), async (re
     const total    = session.amount_total / 100;
     const subtotal = total - shippingFee;
 
-    const customerEmail = session.customer_email || session.customer_details?.email || meta.customerEmail || '';
+    const customerEmail = session.customer_email || session.customer_details?.email || '';
     const customerName  = session.customer_details?.name || meta.addrName || '';
     const customerPhone = meta.customerPhone || session.customer_details?.phone || '';
     const notifEmail    = getSetting('notification_email') || '';

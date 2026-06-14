@@ -703,10 +703,8 @@ function CheckoutContent({
     setIsCheckingOut(true);
     setCheckoutError('');
 
-    const checkoutUrl = new URL(window.location.href);
-    const successPath = checkoutUrl.pathname.replace(/\/checkout\/?$/, '/success');
-    const successUrl = `${checkoutUrl.origin}${successPath}?success=true&session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl  = `${checkoutUrl.origin}${checkoutUrl.pathname}?canceled=true`;
+    const successUrl = `${window.location.href.split('?')[0]}?success=true&session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl  = `${window.location.href.split('?')[0]}?canceled=true`;
 
     try {
       const res = await fetchWithTimeout(`${API_URL}/create-checkout-session`, {
