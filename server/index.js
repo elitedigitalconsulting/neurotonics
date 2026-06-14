@@ -441,7 +441,10 @@ app.post('/create-checkout-session', async (req, res) => {
         shippingFee: String(shippingFeeCents),
         shippingZone: shipping?.zone || 'none',
         shippingOption: shipping?.name || 'none',
-        ...(safePhone && { customerPhone: safePhone }),
+        // Store email in metadata so webhook can always recover it, even if
+        // session.customer_email or customer_details.email are absent.
+        ...(safeEmail    && { customerEmail: safeEmail }),
+        ...(safePhone    && { customerPhone: safePhone }),
         ...addrMeta,
       },
     });
