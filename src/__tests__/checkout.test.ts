@@ -215,6 +215,46 @@ describe('validateCheckoutForm — address fields', () => {
     console.log('[PASS] Empty address1 rejected');
   });
 
+  it('rejects whitespace-only address1', () => {
+    const errors = validateCheckoutForm(
+      validContact,
+      { ...validAddress, address1: '   ' },
+      validShipping,
+    );
+    expect(errors.address1).toBeTruthy();
+    console.log('[PASS] Whitespace-only address1 rejected');
+  });
+
+  it('rejects placeholder address1 values', () => {
+    const errors = validateCheckoutForm(
+      validContact,
+      { ...validAddress, address1: 'Test' },
+      validShipping,
+    );
+    expect(errors.address1).toBeTruthy();
+    console.log('[PASS] Placeholder address1 rejected');
+  });
+
+  it('rejects malformed address1 values', () => {
+    const errors = validateCheckoutForm(
+      validContact,
+      { ...validAddress, address1: '!!!@@@' },
+      validShipping,
+    );
+    expect(errors.address1).toBeTruthy();
+    console.log('[PASS] Malformed address1 rejected');
+  });
+
+  it('accepts a valid street address', () => {
+    const errors = validateCheckoutForm(
+      validContact,
+      { ...validAddress, address1: '123 Main Street' },
+      validShipping,
+    );
+    expect(errors.address1).toBeUndefined();
+    console.log('[PASS] Valid street address accepted');
+  });
+
   it('requires city', () => {
     const errors = validateCheckoutForm(
       validContact,
