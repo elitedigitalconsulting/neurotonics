@@ -79,6 +79,7 @@ export function validateCheckoutForm(
   selectedShipping: ShippingOption | null,
 ): FormErrors {
   const errors: FormErrors = {};
+  const streetAddress = address.address1.trim();
 
   if (!contact.email.trim()) {
     errors.email = 'Email address is required';
@@ -96,8 +97,16 @@ export function validateCheckoutForm(
     errors.fullName = 'Full name is required';
   }
 
-  if (!address.address1.trim()) {
+  if (!streetAddress) {
     errors.address1 = 'Address is required';
+  } else if (
+    streetAddress.length < 5 ||
+    !/[A-Za-z]/.test(streetAddress) ||
+    !/[A-Za-z0-9]/.test(streetAddress) ||
+    !/^[A-Za-z0-9\s,'.#\/-]+$/.test(streetAddress) ||
+    /^(test|none|unknown|n\/a)$/i.test(streetAddress)
+  ) {
+    errors.address1 = 'Please enter a valid street address';
   }
 
   if (!address.city.trim()) {
@@ -780,6 +789,7 @@ function CheckoutContent({
   // successRedirect is no longer used (Stripe Checkout redirects via URL params)
 
   const isAU = address.country === 'AU';
+  const hasBlockingErrors = submitAttempted && Object.keys(errors).length > 0;
 
   return (
     <div className="max-w-[1280px] mx-auto w-full">
@@ -1190,7 +1200,7 @@ function CheckoutContent({
 
             <button
               type="button"
-              disabled={!selectedShipping || isCheckingOut}
+              disabled={!selectedShipping || isCheckingOut || hasBlockingErrors}
               onClick={handleCheckout}
               className="w-full py-4 bg-brand-primary hover:bg-brand-primary-dark text-white font-semibold rounded-xl text-base transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
