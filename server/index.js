@@ -278,6 +278,13 @@ function sanitiseText(value, maxLen = 200) {
   return value.replace(/[\x00-\x1F\x7F]/g, '').trim().slice(0, maxLen);
 }
 
+const DEFAULT_STRIPE_SHIPPING_COUNTRIES = ['AU', 'NZ', 'US', 'GB', 'CA', 'SG', 'JP'];
+
+function getStripeShippingCountries(country) {
+  const code = typeof country === 'string' ? country.trim().toUpperCase() : '';
+  return /^[A-Z]{2}$/.test(code) ? [code] : DEFAULT_STRIPE_SHIPPING_COUNTRIES;
+}
+
 // ---------------------------------------------------------------------------
 // POST /create-checkout-session
 // ---------------------------------------------------------------------------
@@ -395,6 +402,9 @@ app.post('/create-checkout-session', async (req, res) => {
       // Google Pay on Chrome/Android via dashboard payment-method settings.
       // Collect customer email for order confirmation
       customer_creation: 'always',
+      shipping_address_collection: {
+        allowed_countries: getStripeShippingCountries(shippingAddress?.country),
+      },
       // Pass metadata for reference in the Stripe dashboard
       metadata: {
         items: itemSummary,
