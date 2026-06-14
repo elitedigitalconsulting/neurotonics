@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useSearchParams } from 'next/navigation';
 import { useCart } from '@/lib/cart';
 import { withBasePath } from '@/lib/basePath';
 import {
@@ -18,6 +17,20 @@ import { clearShipping, loadShipping } from '@/lib/shippingState';
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 const WEB3FORMS_KEY = process.env.NEXT_PUBLIC_WEB3FORMS_KEY ?? '';
 const PURCHASE_NOTIFICATION_TIMEOUT_MS = 5_000;
+
+function subscribeSearchParams(listener: () => void) {
+  if (typeof window === 'undefined') return () => {};
+  window.addEventListener('popstate', listener);
+  return () => window.removeEventListener('popstate', listener);
+}
+
+function getSearchSnapshot() {
+  return typeof window === 'undefined' ? '' : window.location.search;
+}
+
+function getServerSearchSnapshot() {
+  return '';
+}
 
 // ---------------------------------------------------------------------------
 // Constants (exported for tests)
@@ -1237,20 +1250,21 @@ function CheckoutContent({
 // ---------------------------------------------------------------------------
 
 export default function CheckoutClient() {
-  const searchParams = useSearchParams();
   const { items } = useCart();
+  const search = useSyncExternalStore(subscribeSearchParams, getSearchSnapshot, getServerSearchSnapshot);
+  const query = new URLSearchParams(search);
 
   // Detect payment success from both inline (redirect_status) and legacy (?success=true) flows
   const isSuccess =
-    searchParams.get('success') === 'true' ||
-    searchParams.get('redirect_status') === 'succeeded';
-  const isCanceled = searchParams.get('canceled') === 'true';
+    query.get('success') === 'true' ||
+    query.get('redirect_status') === 'succeeded';
+  const isCanceled = query.get('canceled') === 'true';
 
-  const urlPostcode = searchParams.get('postcode');
-  const urlCountry = searchParams.get('country');
-  const urlShippingId = searchParams.get('shipping');
+  const urlPostcode = query.get('postcode');
+  const urlCountry = query.get('country');
+  const urlShippingId = query.get('shipping');
 
-  if (isSuccess) return <SuccessView sessionId={searchParams.get('session_id')} />;
+  if (isSuccess) return <SuccessView sessionId={query.get('session_id')} />;
   if (isCanceled) return <CancelView />;
   if (items.length === 0) return <EmptyCartView />;
 
