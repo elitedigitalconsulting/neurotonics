@@ -403,7 +403,6 @@ app.post('/create-checkout-session', async (req, res) => {
         shippingFee: String(shippingFeeCents),
         shippingZone: shipping?.zone || 'none',
         shippingOption: shipping?.name || 'none',
-        ...(safeEmail && { customerEmail: safeEmail }),
         ...(safePhone && { customerPhone: safePhone }),
         ...addrMeta,
       },
