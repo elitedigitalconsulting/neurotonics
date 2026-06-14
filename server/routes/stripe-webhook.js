@@ -140,7 +140,11 @@ async function handleCheckoutCompleted(session) {
   const shipping      = { zone: meta.shippingZone || '', name: meta.shippingOption || '', fee: shippingFee };
   const total         = session.amount_total / 100;
   const subtotal      = meta.subtotal ? parseInt(meta.subtotal, 10) / 100 : total - shippingFee;
-  let customerEmail = session.customer_email || session.customer_details?.email || '';
+  // 1. session.customer_email  — pre-filled from checkout form at session creation
+  // 2. session.customer_details.email — collected by Stripe during checkout
+  // 3. Expand customer object from Stripe if still empty
+  // 4. meta.customerEmail — stored in metadata as final fallback
+  let customerEmail = session.customer_email || session.customer_details?.email || meta.customerEmail || '';
   if (!customerEmail) {
     try {
       const fullSession = await getStripe().checkout.sessions.retrieve(stripeId, { expand: ['customer'] });
@@ -148,7 +152,7 @@ async function handleCheckoutCompleted(session) {
       customerEmail =
         fullSession.customer_email ||
         fullSession.customer_details?.email ||
-        (customer && typeof customer === 'object' ? customer.email || '' : '');
+        (customer && typeof customer === 'object' ? (customer.email || '') : '');
     } catch (err) {
       console.error('[webhook] Unable to retrieve checkout customer email:', err.message);
     }

@@ -607,6 +607,14 @@ function CheckoutContent({
   const isAustralia = address.country === 'AU';
   const total = updateTotal(subtotal, selectedShipping?.fee ?? 0);
 
+  // Pre-warm the Render server so it is already running by the time the
+  // user clicks Pay. Render free tier spins down after inactivity; without
+  // this the first request can take 50+ seconds.
+  useEffect(() => {
+    if (API_URL) fetch(`${API_URL}/health`).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Restore saved data on mount
   useEffect(() => {
     let cancelled = false;
@@ -706,10 +714,14 @@ function CheckoutContent({
     const successUrl = `${window.location.href.split('?')[0]}?success=true&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl  = `${window.location.href.split('?')[0]}?canceled=true`;
 
+    const controller = new AbortController();
+    const timeoutId  = setTimeout(() => controller.abort(), 30000);
+
     try {
       const res = await fetchWithTimeout(`${API_URL}/create-checkout-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           items: items.map((i) => ({ name: i.name, quantity: i.quantity, price: i.price })),
           shipping: selectedShipping,
@@ -720,15 +732,24 @@ function CheckoutContent({
           cancelUrl,
         }),
       }, CHECKOUT_SESSION_TIMEOUT_MS);
+      clearTimeout(timeoutId);
       const data = await res.json() as { url?: string; error?: string };
       if (data.url) {
         window.location.href = data.url;
+        // Safety fallback: if redirect hasn't fired within 5s, re-enable button
+        setTimeout(() => setIsCheckingOut(false), 5000);
       } else {
         setCheckoutError(data.error ?? 'Unable to start checkout. Please try again.');
         setIsCheckingOut(false);
       }
-    } catch {
-      setCheckoutError('A network error occurred. Please check your connection and try again.');
+    } catch (err: unknown) {
+      clearTimeout(timeoutId);
+      const isTimeout = err instanceof Error && err.name === 'AbortError';
+      setCheckoutError(
+        isTimeout
+          ? 'The server took too long to respond. It may be starting up — please wait 10 seconds and try again.'
+          : 'A network error occurred. Please check your connection and try again.'
+      );
       setIsCheckingOut(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
