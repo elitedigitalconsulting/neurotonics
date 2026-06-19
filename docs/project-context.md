@@ -25,8 +25,9 @@ The product currently sold by the storefront is:
 - Add Brain Boost 1000 to a cart stored in browser `localStorage`.
 - Calculate shipping based on country and Australian postcode.
 - Complete checkout through Stripe Checkout.
-- Return to `/checkout?success=true` after payment, where cart and checkout
-  state are cleared.
+- Return to `/success?success=true&session_id=...` after payment, where the
+  confirmation page shows a local order snapshot and clears cart, checkout, and
+  shipping state. Cancelled payments return to `/checkout?canceled=true`.
 
 ### Stockist applicants
 
@@ -144,20 +145,24 @@ Root/frontend examples are in `.env.example`:
 - `NEXT_PUBLIC_API_URL`: public URL for the Express server.
 - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`: Stripe publishable key for browser use.
 - `NEXT_PUBLIC_WEB3FORMS_KEY`: optional Web3Forms key for fallback purchase or
-  stockist notifications.
+  stockist notifications. Purchase fallback runs only when `/email-status`
+  reports no configured server email provider.
 - `NEXT_PUBLIC_GOOGLE_PLACES_API_KEY`: optional address autocomplete key.
 
 Server examples are in `server/.env.example`:
 
 - `STRIPE_SECRET_KEY`
-- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_WEBHOOK_SECRET`, required in production so paid Stripe Checkout
+  sessions create orders through `/stripe/webhook`
 - `STRIPE_PUBLISHABLE_KEY`
-- `CLIENT_ORIGINS`
+- `CLIENT_ORIGINS`, which must include every storefront origin allowed to post
+  checkout requests and receive Stripe success/cancel redirects
 - `CMS_JWT_SECRET`
 - `CMS_JWT_REFRESH_SECRET`
 - `ADMIN_INITIAL_EMAIL`
 - `ADMIN_INITIAL_PASSWORD`
 - Email provider settings (`RESEND_*` or SMTP variables)
+- Optional `ORDER_STATUS_URL` for the order link in buyer confirmation emails
 - `GITHUB_PAT`, `GITHUB_OWNER`, `GITHUB_REPO`
 - Optional `DB_PATH` and `DB_BACKUP_DIR`
 

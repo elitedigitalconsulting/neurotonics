@@ -232,7 +232,8 @@ Once enabled in the dashboard they will appear automatically in the Stripe Check
     │   │   ├── calculate-shipping/  # Shipping fee API (local dev only)
     │   │   └── create-payment-intent/  # Legacy payment intent route
     │   ├── cart/             # Shopping cart page
-    │   ├── checkout/         # Checkout + success + cancel pages
+    │   ├── checkout/         # Checkout form and cancel state
+    │   ├── success/          # Stripe Checkout success page
     │   ├── product/          # Product detail page
     │   ├── quiz/             # Recommendation quiz
     │   ├── globals.css       # Global styles
@@ -264,13 +265,30 @@ The cart is implemented as a React context (`src/lib/cart.tsx`) backed by `local
 ## Payment Flow
 
 1. User adds item → cart page → clicks **Proceed to Checkout**
-2. Checkout page loads the order summary (shipping calculated client-side from postcode)
-3. User clicks **Pay $XX AUD** → frontend POSTs cart to `NEXT_PUBLIC_API_URL/create-checkout-session`
-4. Server creates a Stripe Checkout Session and returns `{ url }`
-5. Browser is redirected to `url` (hosted on stripe.com)
-6. Payment is completed on Stripe's PCI-compliant page
-7. On success: Stripe redirects to `/checkout?success=true` → cart is cleared
-8. On cancel: Stripe redirects to `/checkout?canceled=true` → user can retry
+2. Checkout page validates contact, address, and selected delivery option.
+3. User clicks **Pay now** → frontend POSTs cart, shipping, customer details,
+   and redirect URLs to `NEXT_PUBLIC_API_URL/create-checkout-session`.
+4. Server validates the request, creates a Stripe Checkout Session, and returns
+   `{ url }`.
+5. Browser is redirected to `url` (hosted on stripe.com).
+6. Payment is completed on Stripe's PCI-compliant page.
+7. On success: Stripe redirects to
+   `/success?success=true&session_id={CHECKOUT_SESSION_ID}`. The page shows a
+   local order snapshot, then clears cart, checkout, and shipping state.
+8. On cancel: Stripe redirects to `/checkout?canceled=true` so the user can
+   retry with the cart preserved.
+9. Stripe sends `checkout.session.completed` to `/stripe/webhook`; the webhook
+   creates the order, reduces stock, and sends buyer/admin emails.
+
+Operational notes:
+
+- `CLIENT_ORIGINS` must include the storefront origin or checkout redirects are
+  rejected by the Express server.
+- `STRIPE_WEBHOOK_SECRET` is required in production; without the webhook, paid
+  sessions will not create orders in SQLite.
+- Configure Resend or SMTP server email for order confirmations. If server
+  email is not configured, `NEXT_PUBLIC_WEB3FORMS_KEY` can send a browser-side
+  fallback notification after the success redirect.
 
 ## License
 

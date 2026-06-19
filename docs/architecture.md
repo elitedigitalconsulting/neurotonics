@@ -76,13 +76,34 @@ The primary checkout flow is Stripe Checkout through the Express server:
 4. `server/index.js` validates cart item shape, validates redirect URL origins,
    sanitizes metadata, builds Stripe line items, and creates a Checkout Session.
 5. Browser redirects to the returned Stripe-hosted session URL.
-6. Stripe redirects back to `/checkout?success=true&session_id=...` or
-   `/checkout?canceled=true`.
-7. On success, checkout/cart localStorage state is cleared. If server email is
-   not configured, optional Web3Forms purchase notification logic can run.
+6. Stripe redirects back to `/success?success=true&session_id=...`; cancelled
+   sessions return to `/checkout?canceled=true`. `CheckoutClient` still accepts
+   legacy success query parameters on `/checkout`, but new sessions should use
+   `/success`.
+7. The success page reuses `CheckoutClient`, snapshots cart/checkout/shipping
+   data from `localStorage` for the confirmation view, then clears
+   `neurotonics-cart`, checkout state, and selected shipping.
 8. Stripe sends `checkout.session.completed` to `/stripe/webhook`; the webhook
-   creates an order row, reduces stock in `src/content/product.json`, and sends
-   order/admin emails.
+   is the source of truth for order creation. It creates an order row, reduces
+   stock in `src/content/product.json`, and sends buyer/admin emails.
+9. If `/email-status` reports no server email provider and
+   `NEXT_PUBLIC_WEB3FORMS_KEY` is present, the success page can send a Web3Forms
+   fallback notification before clearing local state. This is only a fallback;
+   it does not create the order record.
+
+Operational constraints:
+
+- `CLIENT_ORIGINS` must include every storefront origin that can send checkout
+  redirects. `server/index.js` rejects success/cancel URLs whose origin is not
+  allow-listed.
+- `STRIPE_WEBHOOK_SECRET` is required in production. The webhook is mounted
+  before `express.json()` so Stripe signature verification receives the raw
+  body.
+- Configure either `RESEND_API_KEY`/`RESEND_FROM_EMAIL` or SMTP
+  `EMAIL_USER`/`EMAIL_PASS` for order emails. `ORDER_STATUS_URL` can override
+  the "View Your Order" link template in confirmation emails.
+- Customer totals shown in the browser are not order authority; the Checkout
+  Session and webhook data decide persisted order totals and status.
 
 There is also a legacy or alternate PaymentIntent path:
 
