@@ -21,7 +21,8 @@ contains automated tests for the highest-risk storefront logic.
 - Checkout form with contact/address validation, delivery options, free
   shipping threshold, persisted form state, and order summary.
 - Stripe Checkout session creation through the Express server.
-- Success/cancel handling through checkout URL parameters.
+- Success handling through `/success?success=true&session_id=...`; cancellation
+  handling through `/checkout?canceled=true`.
 - Optional Web3Forms fallback notification logic after success redirects.
 - Static pages for quiz, product, cart, checkout, shipping/returns, and privacy
   policy.
@@ -130,9 +131,9 @@ The Jest config collects coverage from `src/lib/**/*.{ts,tsx}` and
 - The repository rule says to read `node_modules/next/dist/docs/` before editing
   Next.js code. In a fresh checkout, dependencies may not be installed yet, so
   `node_modules/` may be absent until `npm ci` is run.
-- The README and test guide mention both hosted Stripe Checkout and legacy or
-  alternate PaymentIntent/Elements flows. The current checkout client posts to
-  the Express `/create-checkout-session` endpoint for the primary user flow.
+- Hosted Stripe Checkout is the primary customer payment flow. Legacy or
+  alternate PaymentIntent routes remain in the codebase, but the current
+  checkout client posts to the Express `/create-checkout-session` endpoint.
 - The root Next API route at `src/app/api/create-payment-intent/route.ts`
   creates PaymentIntents from a client-supplied amount after Zod validation. The
   Express `/create-payment-intent` route has stronger catalog-based amount

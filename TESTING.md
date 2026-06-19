@@ -326,14 +326,14 @@ Use any future expiry date (e.g. `12/34`) and any 3-digit CVC (e.g. `123`). Any 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
 | 1 | Add item to cart, proceed to checkout |  |
-| 2 | Click **"Load Payment"** | Stripe Elements form appears |
-| 3 | Enter card `4242 4242 4242 4242`, expiry `12/34`, CVC `123` |  |
-| 4 | Click **"Pay Now"** | Processing spinner shown |
-| 5 | On success | Redirected to `/neurotonics/checkout?success=true` |
-| 6 | Observe | "Order Confirmed!" screen with green checkmark |
-| 7 | Check cart | Cart is cleared (localStorage `neurotonics-cart` = `[]`) |
+| 2 | Click **"Pay now"** | Browser redirects to the Stripe-hosted Checkout page |
+| 3 | Enter card `4242 4242 4242 4242`, expiry `12/34`, CVC `123` | Stripe accepts the test card |
+| 4 | Complete payment on Stripe | Redirected to `/neurotonics/success?success=true&session_id=cs_test_...` |
+| 5 | Observe | "Thank You for Your Purchase" confirmation page appears with order details from local state |
+| 6 | Check local state | `neurotonics-cart`, `neurotonics-checkout`, and `neurotonics-shipping` are cleared |
+| 7 | Check server side | Stripe webhook creates an order row and triggers buyer/admin email when email is configured |
 
-✅ **Expected**: Payment succeeds, order confirmed, cart cleared.
+✅ **Expected**: Payment succeeds, confirmation page renders, local checkout state is cleared, and the webhook creates the order.
 
 ---
 
@@ -342,12 +342,12 @@ Use any future expiry date (e.g. `12/34`) and any 3-digit CVC (e.g. `123`). Any 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
 | 1 | Add item to cart, proceed to checkout |  |
-| 2 | Load payment form |  |
-| 3 | Enter card `4000 0000 0000 9995` | Stripe shows "card declined" |
-| 4 | Observe | Red error message appears below the form |
+| 2 | Click **"Pay now"** | Browser redirects to the Stripe-hosted Checkout page |
+| 3 | Enter card `4000 0000 0000 9995` | Stripe shows "card declined" on the hosted page |
+| 4 | Use Stripe's return/cancel control | Redirected to `/neurotonics/checkout?canceled=true` |
 | 5 | Cart state | Cart is NOT cleared, items remain |
 
-✅ **Expected**: Declined payment shows error; cart preserved for retry.
+✅ **Expected**: Declined payment shows a Stripe error; cancelled checkout returns to the form with cart preserved for retry.
 
 ---
 
@@ -359,12 +359,14 @@ Use any future expiry date (e.g. `12/34`) and any 3-digit CVC (e.g. `123`). Any 
 |------|--------|-----------------|
 | 1 | Open the site in **Safari** on macOS or iOS with a saved Apple Pay card |  |
 | 2 | Add item to cart, proceed to checkout |  |
-| 3 | Load payment form | Stripe Elements shows Apple Pay button |
+| 3 | Click **"Pay now"** | Stripe-hosted Checkout opens and shows Apple Pay when eligible |
 | 4 | Click Apple Pay | Touch ID / Face ID prompt appears |
 
 ✅ **Expected**: Apple Pay option visible and functional in Safari.
 
-> ⚠️ **Note**: Apple Pay only appears if: (a) Safari browser, (b) device has a saved payment method, (c) site is served over HTTPS with a valid domain registered with Apple.
+> ⚠️ **Note**: Hosted Stripe Checkout serves the wallet UI from `stripe.com`.
+> Apple Pay only appears when Safari/device/payment-method eligibility is met;
+> no storefront Apple Pay domain verification is required for hosted Checkout.
 
 ---
 
@@ -374,12 +376,14 @@ Use any future expiry date (e.g. `12/34`) and any 3-digit CVC (e.g. `123`). Any 
 |------|--------|-----------------|
 | 1 | Open the site in **Chrome** with a Google account that has saved payment methods |  |
 | 2 | Add item to cart, proceed to checkout |  |
-| 3 | Load payment form | Stripe Elements shows Google Pay button |
+| 3 | Click **"Pay now"** | Stripe-hosted Checkout opens and shows Google Pay when eligible |
 | 4 | Click Google Pay | Google Pay sheet appears |
 
 ✅ **Expected**: Google Pay option visible in Chrome when a payment method is saved.
 
-> ⚠️ **Note**: Google Pay appears via Stripe's `automatic_payment_methods: { enabled: true }`. The button only renders when the browser + account support it.
+> ⚠️ **Note**: Google Pay availability is controlled by Stripe Checkout, browser
+> support, saved payment methods, and the payment methods enabled in the Stripe
+> Dashboard.
 
 ---
 
@@ -447,7 +451,7 @@ These are covered in automated tests (`src/__tests__/cart.test.ts`, `src/__tests
 
 The following console output points are built in:
 
-### API route (`/api/create-payment-intent`)
+### Legacy API route (`/api/create-payment-intent`)
 
 - On error: `console.error('Payment intent creation failed:', error)` — visible in server logs (`npm run dev` terminal) and in browser Network tab response.
 
@@ -478,12 +482,18 @@ JSON.parse(localStorage.getItem('neurotonics-checkout') || 'null')
 ### Debugging checklist for a broken checkout
 
 1. Open DevTools → Network tab
-2. Navigate to checkout and click "Pay $XX.XX AUD"
+2. Navigate to checkout and click "Pay now"
 3. Look for `POST /create-checkout-session` request to `NEXT_PUBLIC_API_URL`
 4. Check response body for `error` field
 5. Check the terminal running `node server/index.js` for server-side error logs
 6. Verify server `.env` contains a valid `STRIPE_SECRET_KEY`
-7. Verify `NEXT_PUBLIC_API_URL` in `.env.local` points to the running Express server
+7. Verify `CLIENT_ORIGINS` includes the storefront origin used in the checkout
+   request and Stripe success/cancel URLs
+8. Verify `NEXT_PUBLIC_API_URL` in `.env.local` points to the running Express server
+9. For paid orders missing from the CMS, verify `STRIPE_WEBHOOK_SECRET` is set
+   and the Stripe Dashboard webhook points to `/stripe/webhook`
+10. For missing order emails, check `GET /email-status` and configure Resend or
+    SMTP if it reports `configured: false`
 
 ---
 
@@ -529,8 +539,8 @@ Use this checklist before each production deployment:
 
 ### Payments
 
-- [ ] **Payments succeed in test mode** — card `4242 4242 4242 4242` shows "Order Confirmed!" ✅
-- [ ] **Declined payment** — Stripe shows error, cart preserved ✅
+- [ ] **Payments succeed in test mode** — card `4242 4242 4242 4242` returns to the "Thank You for Your Purchase" page ✅
+- [ ] **Declined payment** — Stripe-hosted page shows error, cart preserved ✅
 - [ ] **Cart cleared** after successful payment ✅
 - [ ] **Checkout data cleared** after successful payment ✅
 - [ ] **Customer email pre-filled** on Stripe checkout page ✅
