@@ -1,18 +1,6 @@
-const {
+import {
   buildAuthoritativeCheckoutPricing,
-} = require('../../server/checkout-pricing') as {
-  buildAuthoritativeCheckoutPricing: (input: {
-    items: Array<{ name: string; price?: number; quantity: number }>;
-    shipping: { id: string; name?: string; fee?: number };
-    shippingAddress: { postcode?: string; country: string };
-  }) => {
-    subtotalCents: number;
-    shippingFeeCents: number;
-    totalCents: number;
-    shippingOption: { id: string; name: string; feeCents: number };
-    items: Array<{ name: string; quantity: number; priceCents: number }>;
-  };
-};
+} from '../../server/checkout-pricing';
 
 const sydneyAddress = {
   postcode: '2000',
