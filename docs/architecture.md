@@ -76,10 +76,12 @@ The primary checkout flow is Stripe Checkout through the Express server:
 4. `server/index.js` validates cart item shape, validates redirect URL origins,
    sanitizes metadata, builds Stripe line items, and creates a Checkout Session.
 5. Browser redirects to the returned Stripe-hosted session URL.
-6. Stripe redirects back to `/checkout?success=true&session_id=...` or
+6. Stripe redirects back to `/success?success=true&session_id=...` or
    `/checkout?canceled=true`.
-7. On success, checkout/cart localStorage state is cleared. If server email is
-   not configured, optional Web3Forms purchase notification logic can run.
+7. The `/success` page reuses `CheckoutClient` to show a confirmation snapshot
+   from local cart, checkout, and shipping state, then clears those
+   `localStorage` values. If server email is not configured, optional Web3Forms
+   purchase notification logic can run.
 8. Stripe sends `checkout.session.completed` to `/stripe/webhook`; the webhook
    creates an order row, reduces stock in `src/content/product.json`, and sends
    order/admin emails.
@@ -165,6 +167,29 @@ CMS routes live in `server/routes/`:
 Most CMS writes either update SQLite, write content JSON, trigger a backup, or
 commit content changes back to GitHub.
 
+## Order and notification lifecycle
+
+The success redirect is customer-facing only; order persistence is webhook-led:
+
+1. `POST /create-checkout-session` creates the Stripe Checkout Session with
+   sanitized customer/address metadata, allowed redirect URLs, and dynamic
+   payment methods managed by Stripe Dashboard settings.
+2. `/stripe/webhook` verifies the Stripe signature with `STRIPE_WEBHOOK_SECRET`
+   in production before processing events.
+3. `checkout.session.completed` and `checkout.session.async_payment_succeeded`
+   use the Checkout Session id as the idempotency key in `orders.stripe_session_id`.
+4. The webhook reconstructs items from metadata or Stripe line items, captures
+   Stripe shipping/customer details, assigns the next `ORD-...` order number,
+   inserts a paid `processing` order, and reduces product inventory.
+5. `server/email.js` sends the customer order confirmation and admin alert via
+   Resend when `RESEND_API_KEY` is set, otherwise SMTP when `EMAIL_USER` and
+   `EMAIL_PASS` are set.
+
+The alternate PaymentIntent path is retained for compatibility. Its webhook
+handlers create orders for standalone `payment_intent.succeeded` events and
+failed records for `payment_intent.payment_failed`, but the storefront checkout
+button uses hosted Checkout Sessions.
+
 ## Admin dashboard architecture
 
 The admin UI is a Vite React app in `server/admin-ui/`.
@@ -228,6 +253,8 @@ storefront on pushes to `main` and can trigger a Render deploy hook when
 - Stripe secret keys stay on the server.
 - Stripe webhook signature verification requires raw request bodies.
 - Checkout redirects are accepted only when their origin is in `CLIENT_ORIGINS`.
+- The `/success` page is not an order authority; webhook delivery is required
+  for CMS orders, stock reduction, and transactional email.
 - CMS access requires JWT bearer auth; admin-only routes check role.
 - Refresh tokens are HTTP-only cookies.
 - CMS route traffic is rate-limited.

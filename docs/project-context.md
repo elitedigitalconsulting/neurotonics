@@ -25,8 +25,11 @@ The product currently sold by the storefront is:
 - Add Brain Boost 1000 to a cart stored in browser `localStorage`.
 - Calculate shipping based on country and Australian postcode.
 - Complete checkout through Stripe Checkout.
-- Return to `/checkout?success=true` after payment, where cart and checkout
-  state are cleared.
+- Return to `/success?success=true&session_id=...` after payment, where local
+  cart, checkout, and shipping state are shown as a confirmation snapshot and
+  then cleared.
+- Receive durable order records and transactional emails only after Stripe sends
+  the checkout webhook to the Express server.
 
 ### Stockist applicants
 

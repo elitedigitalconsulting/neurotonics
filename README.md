@@ -44,7 +44,7 @@ GitHub Pages (static)          Express Server (any host)
           │
           │ success_url / cancel_url redirect
           ▼
-  GitHub Pages success/cancel page
+  GitHub Pages success page or checkout cancel view
 ```
 
 ## Content Management System (CMS)
@@ -67,7 +67,7 @@ All site content is stored in JSON files under `src/content/`. You can edit text
 You need **two terminal windows** — one for the frontend and one for the backend.
 
 ### Prerequisites
-- Node.js 18+
+- Node.js 20+
 - npm 9+
 - A [Stripe account](https://dashboard.stripe.com)
 
@@ -98,6 +98,7 @@ Edit `server/.env`:
 
 ```env
 STRIPE_SECRET_KEY=sk_test_your_secret_key_here
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
 CLIENT_ORIGINS=http://localhost:3000
 PORT=4000
 ```
@@ -114,7 +115,9 @@ npm run dev   # uses node --watch for auto-restart
 2. Proceed to checkout
 3. Click **Pay** — you'll be redirected to Stripe's hosted checkout page
 4. Use Stripe test card `4242 4242 4242 4242` (any future expiry, any CVC)
-5. On success you'll be redirected back to the confirmation page
+5. On success you'll be redirected to `/success?success=true&session_id=...`
+6. Send a Stripe `checkout.session.completed` webhook to the backend so the CMS
+   order, stock reduction, and order emails are created server-side
 
 ---
 
@@ -129,6 +132,7 @@ Before deploying, set the GitHub Actions secret / environment variable:
 | Variable | Value |
 |----------|-------|
 | `NEXT_PUBLIC_API_URL` | Your deployed backend URL, e.g. `https://your-server.onrender.com` |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key for client-side diagnostics/legacy paths |
 
 Update `NEXT_PUBLIC_API_URL` in your GitHub repository → **Settings → Secrets and variables → Actions**.
 
@@ -144,8 +148,10 @@ You can host the Express server on any Node.js platform. Below are two popular f
 4. Start command: `npm start`
 5. Add environment variables in the Render dashboard:
    - `STRIPE_SECRET_KEY` = `sk_live_...`
+   - `STRIPE_WEBHOOK_SECRET` = `whsec_...`
    - `CLIENT_ORIGINS` = `https://elitedigitalconsulting.github.io`
    - `PORT` = `4000` (Render overrides this automatically)
+   - `RESEND_API_KEY` or `EMAIL_USER` + `EMAIL_PASS` for order emails
 
 #### Option B — Railway.app
 
@@ -216,6 +222,31 @@ In the [Stripe Dashboard → Settings → Payment methods](https://dashboard.str
 
 Once enabled in the dashboard they will appear automatically in the Stripe Checkout page.
 
+### Webhooks and order authority
+
+The customer-facing success page is only a confirmation view. The server creates
+CMS orders from Stripe webhooks, so production must register:
+
+```text
+https://<your-server>/stripe/webhook
+```
+
+Required event for the primary flow:
+
+- `checkout.session.completed`
+
+Useful additional events for alternate or delayed-payment paths:
+
+- `checkout.session.async_payment_succeeded`
+- `payment_intent.succeeded`
+- `payment_intent.payment_failed`
+
+`STRIPE_WEBHOOK_SECRET` is required in production. The webhook route is mounted
+before JSON body parsing so Stripe signature verification receives the raw body.
+On paid Checkout sessions it creates an `ORD-...` order, reduces the product
+stock JSON on the server, and sends buyer/admin emails when an email provider is
+configured.
+
 ---
 
 ## Project Structure
@@ -232,7 +263,8 @@ Once enabled in the dashboard they will appear automatically in the Stripe Check
     │   │   ├── calculate-shipping/  # Shipping fee API (local dev only)
     │   │   └── create-payment-intent/  # Legacy payment intent route
     │   ├── cart/             # Shopping cart page
-    │   ├── checkout/         # Checkout + success + cancel pages
+    │   ├── checkout/         # Checkout form and cancel handling
+    │   ├── success/          # Stripe Checkout success confirmation
     │   ├── product/          # Product detail page
     │   ├── quiz/             # Recommendation quiz
     │   ├── globals.css       # Global styles
@@ -266,11 +298,21 @@ The cart is implemented as a React context (`src/lib/cart.tsx`) backed by `local
 1. User adds item → cart page → clicks **Proceed to Checkout**
 2. Checkout page loads the order summary (shipping calculated client-side from postcode)
 3. User clicks **Pay $XX AUD** → frontend POSTs cart to `NEXT_PUBLIC_API_URL/create-checkout-session`
-4. Server creates a Stripe Checkout Session and returns `{ url }`
+4. Server validates the cart shape and redirect origins, creates a Stripe
+   Checkout Session, and returns `{ url }`
 5. Browser is redirected to `url` (hosted on stripe.com)
 6. Payment is completed on Stripe's PCI-compliant page
-7. On success: Stripe redirects to `/checkout?success=true` → cart is cleared
-8. On cancel: Stripe redirects to `/checkout?canceled=true` → user can retry
+7. On success: Stripe redirects to `/success?success=true&session_id=...`
+8. The success view snapshots local cart/checkout state for display, then clears
+   cart, checkout, and shipping localStorage
+9. Stripe sends `checkout.session.completed` to `/stripe/webhook`; the webhook
+   creates the CMS order, decrements server-side product stock, and triggers
+   buyer/admin emails
+10. On cancel: Stripe redirects to `/checkout?canceled=true` so the user can retry
+
+Do not use the success page as the order source of truth. If an order or email is
+missing after a successful payment, check the Stripe webhook delivery, the
+backend `STRIPE_WEBHOOK_SECRET`, and `/email-status`.
 
 ## License
 

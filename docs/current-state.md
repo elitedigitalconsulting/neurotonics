@@ -21,7 +21,8 @@ contains automated tests for the highest-risk storefront logic.
 - Checkout form with contact/address validation, delivery options, free
   shipping threshold, persisted form state, and order summary.
 - Stripe Checkout session creation through the Express server.
-- Success/cancel handling through checkout URL parameters.
+- Success handling through `/success?success=true&session_id=...`; cancel and
+  legacy success handling remain in the checkout client through URL parameters.
 - Optional Web3Forms fallback notification logic after success redirects.
 - Static pages for quiz, product, cart, checkout, shipping/returns, and privacy
   policy.
@@ -33,7 +34,8 @@ contains automated tests for the highest-risk storefront logic.
 - Stripe Checkout Session endpoint at `/create-checkout-session`.
 - PaymentIntent endpoint at `/create-payment-intent`.
 - Stripe webhook route at `/stripe/webhook`.
-- Order creation from Stripe Checkout and PaymentIntent webhook events.
+- Order creation, inventory reduction, and buyer/admin email triggers from
+  Stripe Checkout and PaymentIntent webhook events.
 - Manual Stripe session sync for admins at `/cms/orders/sync-stripe`.
 - Stockist application endpoint at `/stockist-application`.
 - Health and diagnostics endpoints:
@@ -130,9 +132,11 @@ The Jest config collects coverage from `src/lib/**/*.{ts,tsx}` and
 - The repository rule says to read `node_modules/next/dist/docs/` before editing
   Next.js code. In a fresh checkout, dependencies may not be installed yet, so
   `node_modules/` may be absent until `npm ci` is run.
-- The README and test guide mention both hosted Stripe Checkout and legacy or
-  alternate PaymentIntent/Elements flows. The current checkout client posts to
-  the Express `/create-checkout-session` endpoint for the primary user flow.
+- Hosted Stripe Checkout is the primary customer flow. The current checkout
+  client posts to the Express `/create-checkout-session` endpoint, redirects
+  successful payments to `/success`, and relies on `/stripe/webhook` for CMS
+  order creation. Legacy or alternate PaymentIntent routes still exist and are
+  documented as compatibility paths.
 - The root Next API route at `src/app/api/create-payment-intent/route.ts`
   creates PaymentIntents from a client-supplied amount after Zod validation. The
   Express `/create-payment-intent` route has stronger catalog-based amount
@@ -141,6 +145,12 @@ The Jest config collects coverage from `src/lib/**/*.{ts,tsx}` and
   `src/content/product.json` on the server filesystem. In production this
   affects the server copy and may need a content commit/rebuild path if stock
   should be reflected on the static storefront.
+- `STRIPE_WEBHOOK_SECRET` is required in production. Without successful webhook
+  delivery, payments can succeed in Stripe while CMS orders, stock reductions,
+  and transactional emails are missing.
+- Order email delivery uses `RESEND_API_KEY` first, then SMTP
+  `EMAIL_USER`/`EMAIL_PASS`. Check `/email-status` and server logs when order
+  records exist but notifications are not sent.
 - `server/public/admin/assets/*` are built artifacts. Source changes should be
   made in `server/admin-ui/src/` and rebuilt.
 - Render free-tier storage can be ephemeral across redeploys. Use `/data` or
@@ -177,7 +187,9 @@ Then check:
 - `GET http://localhost:4000/health`
 - `GET http://localhost:4000/admin`
 - `GET http://localhost:4000/email-status`
-- Stripe test checkout with test keys and a webhook configured.
+- Stripe test checkout with test keys and a webhook configured. Successful
+  hosted Checkout should return to `/success?success=true&session_id=...`, while
+  the Stripe webhook should create an `ORD-...` row in SQLite.
 
 ## Current content snapshot
 
