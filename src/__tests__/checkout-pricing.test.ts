@@ -1,4 +1,4 @@
-const { resolveCheckoutPricing } = require('../../server/checkout-pricing');
+import { resolveCheckoutPricing } from '../../server/checkout-pricing';
 
 const validAddress = {
   fullName: 'Jane Smith',
