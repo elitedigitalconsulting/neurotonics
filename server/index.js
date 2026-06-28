@@ -790,7 +790,23 @@ app.post('/stockist-application', async (req, res) => {
 
 
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok' });
+  const webhookSecretSet = !!process.env.STRIPE_WEBHOOK_SECRET;
+  const stripeKeySet     = !!process.env.STRIPE_SECRET_KEY;
+  const emailProvider    = process.env.RESEND_API_KEY
+    ? 'resend'
+    : (process.env.EMAIL_USER && process.env.EMAIL_PASS ? 'smtp' : null);
+
+  const issues = [];
+  if (!stripeKeySet)     issues.push('STRIPE_SECRET_KEY not set — checkout disabled');
+  if (!webhookSecretSet) issues.push('STRIPE_WEBHOOK_SECRET not set — webhooks rejected, no order emails will be sent');
+  if (!emailProvider)    issues.push('No email provider — set RESEND_API_KEY or EMAIL_USER+EMAIL_PASS');
+
+  res.json({
+    status: issues.length === 0 ? 'ok' : 'degraded',
+    stripe: { keyConfigured: stripeKeySet, webhookSecretConfigured: webhookSecretSet },
+    email:  { provider: emailProvider, configured: !!emailProvider },
+    ...(issues.length > 0 && { issues }),
+  });
 });
 
 // Stripe connectivity check — confirms the secret key is valid.

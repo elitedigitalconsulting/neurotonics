@@ -66,8 +66,15 @@ router.post('/', express.raw({ type: 'application/json' }), (req, res) => {
 
   if (!secret) {
     if (process.env.NODE_ENV === 'production') {
-      console.error('[webhook] STRIPE_WEBHOOK_SECRET not set — rejecting.');
-      return res.status(500).json({ error: 'Webhook secret not configured.' });
+      console.error(
+        '[webhook] STRIPE_WEBHOOK_SECRET is not set.\n' +
+        '  Fix: copy the "Signing secret" from Stripe Dashboard → Developers → Webhooks\n' +
+        '  → your endpoint → Signing secret → Reveal, then add it as\n' +
+        '  STRIPE_WEBHOOK_SECRET=whsec_... in your Render environment variables and redeploy.'
+      );
+      return res.status(400).json({
+        error: 'Webhook secret not configured on this server. Set STRIPE_WEBHOOK_SECRET in your environment variables.',
+      });
     }
     console.warn('[webhook] STRIPE_WEBHOOK_SECRET not set — skipping signature check (dev only).');
   }
