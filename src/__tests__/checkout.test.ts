@@ -55,7 +55,7 @@ describe('validateCheckoutForm — valid form', () => {
     console.log('[PASS] No errors for valid AU form');
   });
 
-  it('returns no errors for a valid international form', () => {
+  it('rejects international addresses because checkout is AU-only', () => {
     const intlAddress = {
       ...validAddress,
       state: 'California',
@@ -63,8 +63,8 @@ describe('validateCheckoutForm — valid form', () => {
       country: 'US',
     };
     const errors = validateCheckoutForm(validContact, intlAddress, validShipping);
-    expect(Object.keys(errors)).toHaveLength(0);
-    console.log('[PASS] No errors for valid international form');
+    expect(errors.country).toBe('We cannot deliver to this address, contact us if you have any questions');
+    console.log('[PASS] International form rejected:', errors.country);
   });
 
   it('accepts email without a + in the address part', () => {
@@ -347,24 +347,26 @@ describe('validateCheckoutForm — AU postcode', () => {
 // ---------------------------------------------------------------------------
 
 describe('validateCheckoutForm — international postcode', () => {
-  it('does not require postcode for non-AU (empty is fine)', () => {
+  it('still does not add a postcode-specific error for non-AU when postcode is empty', () => {
     const errors = validateCheckoutForm(
       validContact,
       { ...validAddress, country: 'US', state: 'CA', postcode: '' },
       validShipping,
     );
     expect(errors.postcode).toBeUndefined();
-    console.log('[PASS] Empty postcode allowed for non-AU');
+    expect(errors.country).toBeTruthy();
+    console.log('[PASS] Empty postcode allowed for non-AU while country is blocked');
   });
 
-  it('accepts alphanumeric postcode for non-AU', () => {
+  it('still does not add a postcode-specific error for non-AU alphanumeric postcodes', () => {
     const errors = validateCheckoutForm(
       validContact,
       { ...validAddress, country: 'GB', state: 'England', postcode: 'SW1A 1AA' },
       validShipping,
     );
     expect(errors.postcode).toBeUndefined();
-    console.log('[PASS] UK-style postcode accepted');
+    expect(errors.country).toBeTruthy();
+    console.log('[PASS] UK-style postcode has no postcode error while country is blocked');
   });
 });
 

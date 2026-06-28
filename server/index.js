@@ -30,6 +30,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const Stripe = require('stripe');
 const nodemailer = require('nodemailer');
+const { CheckoutPricingError, resolveCheckoutPricing } = require('./checkout-pricing');
 
 // ---------------------------------------------------------------------------
 // Bootstrap first admin user (from env) if no users exist yet.
@@ -202,28 +203,6 @@ if (fs.existsSync(ADMIN_DIST)) {
 // ---------------------------------------------------------------------------
 
 /**
- * Validate a single cart item received from the frontend.
- * Returns true only if the item is well-formed and safe to pass to Stripe.
- */
-function isValidCartItem(item) {
-  return (
-    item !== null &&
-    typeof item === 'object' &&
-    typeof item.name === 'string' &&
-    item.name.length > 0 &&
-    item.name.length <= 200 &&
-    typeof item.price === 'number' &&
-    Number.isFinite(item.price) &&
-    item.price > 0 &&
-    item.price < 100000 && // sanity cap: $100,000 AUD per item
-    typeof item.quantity === 'number' &&
-    Number.isInteger(item.quantity) &&
-    item.quantity >= 1 &&
-    item.quantity <= 99
-  );
-}
-
-/**
  * Sanitise a product image URL: only allow absolute HTTPS URLs.
  * Returns undefined if the URL is not safe (Stripe will just show no image).
  */
@@ -306,19 +285,6 @@ app.post('/create-checkout-session', async (req, res) => {
 
   const { items, shipping, customerEmail, customerPhone, shippingAddress, successUrl, cancelUrl } = req.body;
 
-  // --- Validate cart items ---
-  if (!Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ error: 'Cart is empty or invalid.' });
-  }
-  if (items.length > 50) {
-    return res.status(400).json({ error: 'Cart exceeds maximum item count.' });
-  }
-  for (const item of items) {
-    if (!isValidCartItem(item)) {
-      return res.status(400).json({ error: 'One or more cart items are invalid.' });
-    }
-  }
-
   // --- Validate redirect URLs ---
   const safeSuccessUrl = sanitiseRedirectUrl(successUrl);
   const safeCancelUrl = sanitiseRedirectUrl(cancelUrl);
@@ -326,8 +292,18 @@ app.post('/create-checkout-session', async (req, res) => {
     return res.status(400).json({ error: 'Invalid success or cancel URL.' });
   }
 
+  let pricing;
+  try {
+    pricing = resolveCheckoutPricing({ items, shipping, shippingAddress });
+  } catch (err) {
+    if (err instanceof CheckoutPricingError) {
+      return res.status(err.statusCode).json({ error: err.message });
+    }
+    throw err;
+  }
+
   // --- Build Stripe line items ---
-  const lineItems = items.map((item) => ({
+  const lineItems = pricing.items.map((item) => ({
     price_data: {
       currency: 'aud',
       product_data: {
@@ -338,40 +314,21 @@ app.post('/create-checkout-session', async (req, res) => {
         }),
       },
       // Stripe requires amounts in the smallest currency unit (cents)
-      unit_amount: Math.round(item.price * 100),
+      unit_amount: item.priceCents,
     },
     quantity: item.quantity,
   }));
 
-  // Add shipping as a separate line item when provided
-  let shippingFeeCents = 0;
-  if (
-    shipping &&
-    typeof shipping.fee === 'number' &&
-    Number.isFinite(shipping.fee) &&
-    shipping.fee > 0
-  ) {
-    shippingFeeCents = Math.round(shipping.fee * 100);
-    const shippingLabel =
-      typeof shipping.name === 'string' && shipping.name.length <= 100
-        ? shipping.name
-        : typeof shipping.zone === 'string' && shipping.zone.length <= 100
-          ? shipping.zone
-          : 'Standard';
-
-    const estimatedDays =
-      typeof shipping.estimatedDays === 'string' && shipping.estimatedDays.length <= 200
-        ? shipping.estimatedDays
-        : '';
-
+  // Add authoritative shipping as a separate line item when it has a fee.
+  if (pricing.shippingFeeCents > 0) {
     lineItems.push({
       price_data: {
         currency: 'aud',
         product_data: {
-          name: `Delivery — ${shippingLabel}`,
-          ...(estimatedDays && { description: estimatedDays }),
+          name: `Delivery — ${pricing.shippingOption.name}`,
+          ...(pricing.shippingOption.estimatedDays && { description: pricing.shippingOption.estimatedDays }),
         },
-        unit_amount: shippingFeeCents,
+        unit_amount: pricing.shippingFeeCents,
       },
       quantity: 1,
     });
@@ -394,12 +351,13 @@ app.post('/create-checkout-session', async (req, res) => {
       }
     : {};
 
-  const subtotalCents = items.reduce((sum, item) => sum + Math.round(item.price * 100) * item.quantity, 0);
-  const itemSummary = JSON.stringify(items.map((i) => `${i.name} x${i.quantity}`));
-  const itemDetails = JSON.stringify(items.map((i) => ({
+  const subtotalCents = pricing.subtotalCents;
+  const shippingFeeCents = pricing.shippingFeeCents;
+  const itemSummary = JSON.stringify(pricing.items.map((i) => `${i.name} x${i.quantity}`));
+  const itemDetails = JSON.stringify(pricing.items.map((i) => ({
     name: i.name,
-    qty: i.quantity,
-    priceCents: Math.round(i.price * 100),
+    quantity: i.quantity,
+    priceCents: i.priceCents,
   })));
 
   // --- Create Stripe Checkout session ---
@@ -439,8 +397,8 @@ app.post('/create-checkout-session', async (req, res) => {
         ...(itemDetails.length <= 500 && { itemsJson: itemDetails }),
         subtotal: String(subtotalCents),
         shippingFee: String(shippingFeeCents),
-        shippingZone: shipping?.zone || 'none',
-        shippingOption: shipping?.name || 'none',
+        shippingZone: pricing.shippingOption.zone || 'none',
+        shippingOption: pricing.shippingOption.name || 'none',
         // Store email in metadata so webhook can always recover it, even if
         // session.customer_email or customer_details.email are absent.
         ...(safeEmail    && { customerEmail: safeEmail }),
