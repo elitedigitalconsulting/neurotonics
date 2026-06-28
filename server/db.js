@@ -115,13 +115,15 @@ db.exec(`
 // Safe column migrations for existing tables
 const existingCols = db.prepare('PRAGMA table_info(orders)').all().map(r => r.name);
 const addCol = (col, def) => { if (!existingCols.includes(col)) db.exec(`ALTER TABLE orders ADD COLUMN ${col} ${def}`); };
-addCol('order_number',      'TEXT');
-addCol('payment_status',    "TEXT NOT NULL DEFAULT 'pending'");
-addCol('admin_notes',       "TEXT NOT NULL DEFAULT ''");
-addCol('tracking_number',   "TEXT NOT NULL DEFAULT ''");
-addCol('carrier',           "TEXT NOT NULL DEFAULT ''");
-addCol('fulfillment_date',  'TEXT');
-addCol('fulfillment_notes', "TEXT NOT NULL DEFAULT ''");
+addCol('order_number',       'TEXT');
+addCol('payment_status',     "TEXT NOT NULL DEFAULT 'pending'");
+addCol('admin_notes',        "TEXT NOT NULL DEFAULT ''");
+addCol('tracking_number',    "TEXT NOT NULL DEFAULT ''");
+addCol('carrier',            "TEXT NOT NULL DEFAULT ''");
+addCol('fulfillment_date',   'TEXT');
+addCol('fulfillment_notes',  "TEXT NOT NULL DEFAULT ''");
+addCol('email_sent',         "INTEGER NOT NULL DEFAULT 0");
+addCol('admin_alert_sent',   "INTEGER NOT NULL DEFAULT 0");
 db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_order_number ON orders(order_number) WHERE order_number IS NOT NULL`);
 
 // ---------------------------------------------------------------------------

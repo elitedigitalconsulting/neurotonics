@@ -100,12 +100,66 @@ async function handleEvent(event) {
 }
 
 // ---------------------------------------------------------------------------
+// Helper: mark email flags on an order (fire-and-forget, errors are logged)
+// ---------------------------------------------------------------------------
+function markEmailSent(orderId) {
+  db.run('UPDATE orders SET email_sent = 1 WHERE id = ?', [orderId])
+    .catch(e => console.error('[webhook] Failed to update email_sent:', e.message));
+}
+
+function markAdminAlertSent(orderId) {
+  db.run('UPDATE orders SET admin_alert_sent = 1 WHERE id = ?', [orderId])
+    .catch(e => console.error('[webhook] Failed to update admin_alert_sent:', e.message));
+}
+
+// ---------------------------------------------------------------------------
+// Helper: send confirmation + admin alert for an already-created order,
+// updating the tracking flags on success.
+// ---------------------------------------------------------------------------
+function dispatchEmails(order) {
+  sendOrderConfirmation(order)
+    .then((sent) => {
+      if (sent) {
+        markEmailSent(order.id);
+        console.log(`[webhook] Buyer confirmation email sent for order ${order.order_number}`);
+      } else {
+        console.warn(`[webhook] Buyer confirmation email skipped for order ${order.order_number}: missing customer email`);
+      }
+    })
+    .catch(err => console.error(`[webhook] Buyer confirmation email failed for order ${order.order_number}:`, err.message));
+
+  sendAdminOrderAlert(order)
+    .then(() => {
+      markAdminAlertSent(order.id);
+      console.log(`[webhook] Admin alert email sent for order ${order.order_number}`);
+    })
+    .catch(err => console.error(`[webhook] Admin alert email failed for order ${order.order_number}:`, err.message));
+}
+
+// ---------------------------------------------------------------------------
 // checkout.session.completed — PRIMARY path
 // ---------------------------------------------------------------------------
 async function handleCheckoutCompleted(session) {
   const stripeId = session.id;
-  const existing = await db.get('SELECT id FROM orders WHERE stripe_session_id = ?', [stripeId]);
-  if (existing) { console.log(`[webhook] Duplicate ${stripeId} — skipping`); return; }
+
+  // Idempotency check — but on a duplicate event, retry unsent emails so that
+  // a transient SMTP/Resend failure on the first delivery is healed by Stripe's
+  // automatic webhook retry without creating a duplicate order.
+  const existing = await db.get(
+    'SELECT id, order_number, email_sent, admin_alert_sent FROM orders WHERE stripe_session_id = ?',
+    [stripeId],
+  );
+  if (existing) {
+    if (!existing.email_sent || !existing.admin_alert_sent) {
+      console.log(`[webhook] Duplicate ${stripeId} — order ${existing.order_number} exists but email not fully sent; retrying`);
+      const order = await db.get('SELECT * FROM orders WHERE id = ?', [existing.id]);
+      if (order) dispatchEmails(order);
+    } else {
+      console.log(`[webhook] Duplicate ${stripeId} — order ${existing.order_number} already processed; skipping`);
+    }
+    return;
+  }
+
   if (session.payment_status && session.payment_status !== 'paid') {
     console.log(`[webhook] Payment not confirmed for ${stripeId} (${session.payment_status}) — skipping email`);
     return;
@@ -173,16 +227,8 @@ async function handleCheckoutCompleted(session) {
   console.log(`[webhook] Order ${orderNumber} created — ${customerEmail} — $${total} AUD`);
 
   reduceInventory(items);
-  console.log(`[webhook] Email triggered for order ${orderNumber}`);
-  sendOrderConfirmation(order)
-    .then((sent) => {
-      if (sent) console.log(`[webhook] Buyer confirmation email completed for order ${orderNumber}`);
-      else console.warn(`[webhook] Buyer confirmation email skipped for order ${orderNumber}: missing customer email`);
-    })
-    .catch(err => console.error(`[webhook] Buyer confirmation email failed for order ${orderNumber}:`, err.message));
-  sendAdminOrderAlert(order)
-    .then(() => console.log(`[webhook] Admin alert email completed for order ${orderNumber}`))
-    .catch(err => console.error(`[webhook] Admin alert email failed for order ${orderNumber}:`, err.message));
+  console.log(`[webhook] Dispatching emails for order ${orderNumber}`);
+  dispatchEmails(order);
 }
 
 // ---------------------------------------------------------------------------
@@ -198,8 +244,20 @@ async function handlePaymentSucceeded(paymentIntent) {
   }
 
   const stripeId = paymentIntent.id;
-  const existing = await db.get('SELECT id FROM orders WHERE stripe_session_id = ?', [stripeId]);
-  if (existing) { console.log(`[webhook] Duplicate PI ${stripeId} — skipping`); return; }
+  const existing = await db.get(
+    'SELECT id, order_number, email_sent, admin_alert_sent FROM orders WHERE stripe_session_id = ?',
+    [stripeId],
+  );
+  if (existing) {
+    if (!existing.email_sent || !existing.admin_alert_sent) {
+      console.log(`[webhook] Duplicate PI ${stripeId} — order ${existing.order_number} exists but email not fully sent; retrying`);
+      const order = await db.get('SELECT * FROM orders WHERE id = ?', [existing.id]);
+      if (order) dispatchEmails(order);
+    } else {
+      console.log(`[webhook] Duplicate PI ${stripeId} — order ${existing.order_number} already processed; skipping`);
+    }
+    return;
+  }
 
   const meta = paymentIntent.metadata || {};
   let items = [];
@@ -224,16 +282,8 @@ async function handlePaymentSucceeded(paymentIntent) {
   const order = await db.get('SELECT * FROM orders WHERE id = ?', [Number(result.lastInsertRowid)]);
   console.log(`[webhook] Order ${orderNumber} created — $${total} AUD`);
   reduceInventory(items);
-  console.log(`[webhook] Email triggered for order ${orderNumber}`);
-  sendOrderConfirmation(order)
-    .then((sent) => {
-      if (sent) console.log(`[webhook] Buyer confirmation email completed for order ${orderNumber}`);
-      else console.warn(`[webhook] Buyer confirmation email skipped for order ${orderNumber}: missing customer email`);
-    })
-    .catch(err => console.error(`[webhook] Buyer confirmation email failed for order ${orderNumber}:`, err.message));
-  sendAdminOrderAlert(order)
-    .then(() => console.log(`[webhook] Admin alert email completed for order ${orderNumber}`))
-    .catch(err => console.error(`[webhook] Admin alert email failed for order ${orderNumber}:`, err.message));
+  console.log(`[webhook] Dispatching emails for order ${orderNumber}`);
+  dispatchEmails(order);
 }
 
 // ---------------------------------------------------------------------------
