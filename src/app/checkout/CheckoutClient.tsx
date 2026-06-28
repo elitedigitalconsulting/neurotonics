@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useSyncExternalStore } from 'react';
+import { useState, useEffect, useCallback, useSyncExternalStore, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/lib/cart';
@@ -16,6 +16,7 @@ import { clearShipping, loadShipping } from '@/lib/shippingState';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 const WEB3FORMS_KEY = process.env.NEXT_PUBLIC_WEB3FORMS_KEY ?? '';
+const GOOGLE_MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY ?? '';
 const PURCHASE_NOTIFICATION_TIMEOUT_MS = 5_000;
 const CHECKOUT_SESSION_TIMEOUT_MS = 20_000;
 
@@ -39,13 +40,6 @@ function getServerSearchSnapshot() {
 
 export const COUNTRIES = [
   { code: 'AU', name: 'Australia' },
-  { code: 'NZ', name: 'New Zealand' },
-  { code: 'US', name: 'United States' },
-  { code: 'GB', name: 'United Kingdom' },
-  { code: 'CA', name: 'Canada' },
-  { code: 'SG', name: 'Singapore' },
-  { code: 'JP', name: 'Japan' },
-  { code: 'OTHER', name: 'Other country' },
 ];
 
 export const AU_STATES = [
@@ -203,6 +197,251 @@ function formatAddress(address: CheckoutAddress | undefined): string {
     address.postcode,
     address.country,
   ].filter(Boolean).join(', ') || '(not provided)';
+}
+
+// ---------------------------------------------------------------------------
+// Google Places autocomplete
+// ---------------------------------------------------------------------------
+
+let googleMapsPromise: Promise<void> | null = null;
+
+function ensureGoogleMapsLoaded(apiKey: string): Promise<void> {
+  if (typeof window === 'undefined') return Promise.reject(new Error('SSR'));
+  if ((window as Window & { google?: typeof google }).google?.maps?.places) {
+    return Promise.resolve();
+  }
+  if (!googleMapsPromise) {
+    googleMapsPromise = new Promise<void>((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&loading=async`;
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => {
+        googleMapsPromise = null;
+        reject(new Error('Google Maps failed to load'));
+      };
+      document.head.appendChild(script);
+    });
+  }
+  return googleMapsPromise;
+}
+
+type AutocompleteAddressFields = {
+  address1: string;
+  city: string;
+  state: string;
+  postcode: string;
+};
+
+function parseAddressComponents(
+  components: google.maps.GeocoderAddressComponent[],
+): AutocompleteAddressFields {
+  const get = (type: string, useShort = false): string => {
+    const c = components.find((comp) => comp.types.includes(type));
+    return useShort ? (c?.short_name ?? '') : (c?.long_name ?? '');
+  };
+  const address1 = [get('street_number'), get('route')].filter(Boolean).join(' ');
+  const city =
+    get('locality') || get('sublocality_level_1') || get('sublocality') || get('postal_town');
+  const state = get('administrative_area_level_1', true);
+  const postcode = get('postal_code');
+  return { address1, city, state, postcode };
+}
+
+function AddressAutocomplete({
+  value,
+  onChange,
+  onAddressSelect,
+  onBlur,
+  hasError,
+  disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onAddressSelect: (fields: AutocompleteAddressFields) => void;
+  onBlur: () => void;
+  hasError: boolean;
+  disabled?: boolean;
+}) {
+  const [suggestions, setSuggestions] = useState<
+    google.maps.places.AutocompletePrediction[]
+  >([]);
+  const [open, setOpen] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const [isLoading, setIsLoading] = useState(false);
+  const svcRef = useRef<google.maps.places.AutocompleteService | null>(null);
+  const detailsRef = useRef<google.maps.places.PlacesService | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!GOOGLE_MAPS_KEY) return;
+    ensureGoogleMapsLoaded(GOOGLE_MAPS_KEY)
+      .then(() => {
+        svcRef.current = new google.maps.places.AutocompleteService();
+        const dummy = document.createElement('div');
+        detailsRef.current = new google.maps.places.PlacesService(dummy);
+      })
+      .catch(() => {/* fall back to plain input */});
+  }, []);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setActiveIdx(-1);
+      }
+    }
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, []);
+
+  const fetchSuggestions = useCallback((input: string) => {
+    if (!svcRef.current || input.length < 3) {
+      setSuggestions([]);
+      setOpen(false);
+      return;
+    }
+    setIsLoading(true);
+    svcRef.current.getPlacePredictions(
+      { input, componentRestrictions: { country: 'au' }, types: ['address'] },
+      (predictions, status) => {
+        setIsLoading(false);
+        if (
+          status === google.maps.places.PlacesServiceStatus.OK &&
+          predictions?.length
+        ) {
+          setSuggestions(predictions);
+          setOpen(true);
+        } else {
+          setSuggestions([]);
+          setOpen(false);
+        }
+      },
+    );
+  }, []);
+
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const v = e.target.value;
+      onChange(v);
+      setActiveIdx(-1);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => fetchSuggestions(v), 300);
+    },
+    [onChange, fetchSuggestions],
+  );
+
+  const handleSelect = useCallback(
+    (placeId: string) => {
+      if (!detailsRef.current) return;
+      detailsRef.current.getDetails(
+        { placeId, fields: ['address_components', 'formatted_address'] },
+        (place, status) => {
+          if (
+            status === google.maps.places.PlacesServiceStatus.OK &&
+            place?.address_components
+          ) {
+            const fields = parseAddressComponents(place.address_components);
+            onAddressSelect(fields);
+            onChange(fields.address1);
+          }
+          setSuggestions([]);
+          setOpen(false);
+          setActiveIdx(-1);
+        },
+      );
+    },
+    [onAddressSelect, onChange],
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (!open || !suggestions.length) return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActiveIdx((i) => Math.min(i + 1, suggestions.length - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActiveIdx((i) => Math.max(i - 1, -1));
+      } else if (e.key === 'Enter' && activeIdx >= 0) {
+        e.preventDefault();
+        handleSelect(suggestions[activeIdx].place_id);
+      } else if (e.key === 'Escape') {
+        setOpen(false);
+        setActiveIdx(-1);
+      }
+    },
+    [open, suggestions, activeIdx, handleSelect],
+  );
+
+  return (
+    <div ref={rootRef} className="relative">
+      <input
+        type="text"
+        value={value}
+        onChange={handleChange}
+        onBlur={onBlur}
+        onFocus={() => { if (suggestions.length > 0) setOpen(true); }}
+        onKeyDown={handleKeyDown}
+        placeholder="Street address"
+        aria-label="Street address"
+        aria-autocomplete="list"
+        aria-expanded={open}
+        autoComplete="off"
+        className={inputCls(hasError)}
+        disabled={disabled}
+      />
+      {isLoading && (
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+          <span className="w-4 h-4 border-2 border-gray-300 border-t-brand-primary rounded-full animate-spin block" />
+        </span>
+      )}
+      {open && suggestions.length > 0 && (
+        <ul
+          role="listbox"
+          className="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-72 overflow-y-auto"
+        >
+          {suggestions.map((s, i) => (
+            <li
+              key={s.place_id}
+              role="option"
+              aria-selected={i === activeIdx}
+              onMouseDown={() => handleSelect(s.place_id)}
+              className={`px-4 py-3 text-sm cursor-pointer select-none flex items-start gap-2 ${
+                i === activeIdx ? 'bg-blue-50' : 'hover:bg-gray-50'
+              }`}
+            >
+              <svg className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>
+                <span className="font-medium text-gray-900">
+                  {s.structured_formatting.main_text}
+                </span>
+                {s.structured_formatting.secondary_text && (
+                  <span className="text-gray-500 ml-1">
+                    {s.structured_formatting.secondary_text}
+                  </span>
+                )}
+              </span>
+            </li>
+          ))}
+          <li className="px-4 py-2 flex justify-end border-t border-gray-100">
+            {/* Required attribution per Google Maps Platform ToS */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="https://maps.gstatic.com/mapfiles/api-3/images/powered-by-google-on-white3.png"
+              alt="Powered by Google"
+              className="h-4 opacity-70"
+            />
+          </li>
+        </ul>
+      )}
+    </div>
+  );
 }
 
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = PURCHASE_NOTIFICATION_TIMEOUT_MS): Promise<Response> {
@@ -873,7 +1112,6 @@ function CheckoutContent({
 
   // successRedirect is no longer used (Stripe Checkout redirects via URL params)
 
-  const isAU = address.country === 'AU';
   const hasBlockingErrors = submitAttempted && Object.keys(errors).length > 0;
 
   return (
@@ -963,50 +1201,12 @@ function CheckoutContent({
             <h2 className="text-lg font-bold text-gray-900 mb-4">Delivery</h2>
             <div className="space-y-3">
 
-              {/* Country */}
+              {/* Country — Australia only */}
               <div data-form-field>
-                <div className="relative">
-                  <select
-                    id="country"
-                    autoComplete="country"
-                    value={address.country}
-                    onChange={(e) => {
-                      const newCountry = e.target.value;
-                      setAddress((p) => ({
-                        ...p,
-                        country: newCountry,
-                        state: newCountry !== 'AU' ? '' : p.state,
-                        postcode: newCountry !== 'AU' ? '' : p.postcode,
-                      }));
-                      setShippingOptions([]);
-                      setSelectedShipping(null);
-                      // Immediately show the AU-only error without waiting for blur
-                      setTouched((prev) => new Set(prev).add('country'));
-                      if (newCountry && newCountry !== 'AU') {
-                        setErrors((prev) => ({
-                          ...prev,
-                          country: 'We cannot deliver to this address, contact us if you have any questions',
-                        }));
-                      } else {
-                        setErrors((prev) => {
-                          const next = { ...prev };
-                          delete next.country;
-                          return next;
-                        });
-                      }
-                    }}
-                    onBlur={() => touchField('country')}
-                    className={selectCls(!!showError('country'))}
-                    aria-label="Country / Region"
-                  >
-                    <option value="" disabled>Country / Region</option>
-                    {COUNTRIES.map((c) => (
-                      <option key={c.code} value={c.code}>{c.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown />
+                <div className="flex items-center gap-2 px-3.5 py-3 border border-gray-300 rounded-lg bg-gray-50 text-sm text-gray-700">
+                  <span className="text-base leading-none">🇦🇺</span>
+                  <span>Australia</span>
                 </div>
-                <FieldError message={showError('country')} />
               </div>
 
               {/* First + Last name */}
@@ -1042,15 +1242,20 @@ function CheckoutContent({
 
               {/* Street address */}
               <div data-form-field>
-                <input
-                  type="text"
+                <AddressAutocomplete
                   value={address.address1}
-                  onChange={(e) => setAddress((p) => ({ ...p, address1: e.target.value }))}
+                  onChange={(v) => setAddress((p) => ({ ...p, address1: v }))}
+                  onAddressSelect={(fields) =>
+                    setAddress((p) => ({
+                      ...p,
+                      address1: fields.address1,
+                      city: fields.city || p.city,
+                      state: fields.state || p.state,
+                      postcode: fields.postcode || p.postcode,
+                    }))
+                  }
                   onBlur={() => touchField('address1')}
-                  placeholder="Street address"
-                  aria-label="Street address"
-                  className={inputCls(!!showError('address1'))}
-                  autoComplete="address-line1"
+                  hasError={!!showError('address1')}
                   disabled={isCheckingOut}
                 />
                 <span data-field-error={!!showError('address1') || undefined}>
@@ -1072,7 +1277,7 @@ function CheckoutContent({
               </div>
 
               {/* Suburb / State / Postcode row */}
-              <div className={`grid gap-3 ${isAU ? 'grid-cols-3' : 'grid-cols-2'}`}>
+              <div className="grid gap-3 grid-cols-3">
                 {/* Suburb */}
                 <div data-form-field>
                   <input
@@ -1092,77 +1297,43 @@ function CheckoutContent({
 
                 {/* State */}
                 <div data-form-field>
-                  {isAU ? (
-                    <div className="relative">
-                      <select
-                        autoComplete="address-level1"
-                        value={address.state}
-                        onChange={(e) => setAddress((p) => ({ ...p, state: e.target.value }))}
-                        onBlur={() => touchField('state')}
-                        className={selectCls(!!showError('state'))}
-                        aria-label="State / Territory"
-                      >
-                        <option value="">State</option>
-                        {AU_STATES.map((s) => (
-                          <option key={s.code} value={s.code}>{s.code}</option>
-                        ))}
-                      </select>
-                      <ChevronDown />
-                    </div>
-                  ) : (
-                    <input
-                      type="text"
+                  <div className="relative">
+                    <select
                       autoComplete="address-level1"
                       value={address.state}
                       onChange={(e) => setAddress((p) => ({ ...p, state: e.target.value }))}
                       onBlur={() => touchField('state')}
-                      placeholder="State / Region"
-                      aria-label="State / Region"
-                      className={inputCls(!!showError('state'))}
-                    />
-                  )}
+                      className={selectCls(!!showError('state'))}
+                      aria-label="State / Territory"
+                    >
+                      <option value="">State</option>
+                      {AU_STATES.map((s) => (
+                        <option key={s.code} value={s.code}>{s.code}</option>
+                      ))}
+                    </select>
+                    <ChevronDown />
+                  </div>
                   <span data-field-error={!!showError('state') || undefined}>
                     <FieldError message={showError('state')} />
                   </span>
                 </div>
 
-                {/* Postcode (AU only in this grid) */}
-                {isAU && (
-                  <div data-form-field>
-                    <input
-                      type="text"
-                      autoComplete="postal-code"
-                      inputMode="numeric"
-                      value={address.postcode}
-                      onChange={(e) =>
-                        setAddress((p) => ({
-                          ...p,
-                          postcode: e.target.value.replace(/\D/g, '').slice(0, 4),
-                        }))
-                      }
-                      onBlur={() => touchField('postcode')}
-                      placeholder="Postcode"
-                      maxLength={4}
-                      aria-label="Postcode"
-                      className={inputCls(!!showError('postcode'))}
-                    />
-                    <span data-field-error={!!showError('postcode') || undefined}>
-                      <FieldError message={showError('postcode')} />
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Non-AU postcode */}
-              {!isAU && (
+                {/* Postcode */}
                 <div data-form-field>
                   <input
                     type="text"
                     autoComplete="postal-code"
+                    inputMode="numeric"
                     value={address.postcode}
-                    onChange={(e) => setAddress((p) => ({ ...p, postcode: e.target.value.slice(0, 10) }))}
+                    onChange={(e) =>
+                      setAddress((p) => ({
+                        ...p,
+                        postcode: e.target.value.replace(/\D/g, '').slice(0, 4),
+                      }))
+                    }
                     onBlur={() => touchField('postcode')}
                     placeholder="Postcode"
+                    maxLength={4}
                     aria-label="Postcode"
                     className={inputCls(!!showError('postcode'))}
                   />
@@ -1170,7 +1341,7 @@ function CheckoutContent({
                     <FieldError message={showError('postcode')} />
                   </span>
                 </div>
-              )}
+              </div>
 
               {/* Phone */}
               <div data-form-field>
