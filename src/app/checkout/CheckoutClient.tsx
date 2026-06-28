@@ -129,6 +129,8 @@ export function validateCheckoutForm(
 
   if (!address.country) {
     errors.country = 'Country is required';
+  } else if (address.country !== 'AU') {
+    errors.country = 'We cannot deliver to this address, contact us if you have any questions';
   }
 
   if (!selectedShipping) {
@@ -978,6 +980,20 @@ function CheckoutContent({
                       }));
                       setShippingOptions([]);
                       setSelectedShipping(null);
+                      // Immediately show the AU-only error without waiting for blur
+                      setTouched((prev) => new Set(prev).add('country'));
+                      if (newCountry && newCountry !== 'AU') {
+                        setErrors((prev) => ({
+                          ...prev,
+                          country: 'We cannot deliver to this address, contact us if you have any questions',
+                        }));
+                      } else {
+                        setErrors((prev) => {
+                          const next = { ...prev };
+                          delete next.country;
+                          return next;
+                        });
+                      }
                     }}
                     onBlur={() => touchField('country')}
                     className={selectCls(!!showError('country'))}
