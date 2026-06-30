@@ -326,14 +326,14 @@ Use any future expiry date (e.g. `12/34`) and any 3-digit CVC (e.g. `123`). Any 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
 | 1 | Add item to cart, proceed to checkout |  |
-| 2 | Click **"Load Payment"** | Stripe Elements form appears |
-| 3 | Enter card `4242 4242 4242 4242`, expiry `12/34`, CVC `123` |  |
-| 4 | Click **"Pay Now"** | Processing spinner shown |
-| 5 | On success | Redirected to `/neurotonics/checkout?success=true` |
-| 6 | Observe | "Order Confirmed!" screen with green checkmark |
-| 7 | Check cart | Cart is cleared (localStorage `neurotonics-cart` = `[]`) |
+| 2 | Click **"Pay $XX.XX AUD"** | Browser redirects to Stripe-hosted Checkout |
+| 3 | Enter card `4242 4242 4242 4242`, expiry `12/34`, CVC `123` | Stripe accepts payment |
+| 4 | On success | Redirected to `/neurotonics/success?success=true&session_id=...` |
+| 5 | Observe | "Thank You for Your Purchase" confirmation and order summary |
+| 6 | Check cart | Cart is cleared (localStorage `neurotonics-cart` = `[]`) |
+| 7 | Check backend | Stripe webhook creates an `ORD-...` order in the CMS |
 
-✅ **Expected**: Payment succeeds, order confirmed, cart cleared.
+✅ **Expected**: Payment succeeds, success page confirms the purchase, cart is cleared, and the webhook creates the durable CMS order.
 
 ---
 
@@ -342,9 +342,9 @@ Use any future expiry date (e.g. `12/34`) and any 3-digit CVC (e.g. `123`). Any 
 | Step | Action | Expected Result |
 |------|--------|-----------------|
 | 1 | Add item to cart, proceed to checkout |  |
-| 2 | Load payment form |  |
+| 2 | Click **"Pay $XX.XX AUD"** | Browser redirects to Stripe-hosted Checkout |
 | 3 | Enter card `4000 0000 0000 9995` | Stripe shows "card declined" |
-| 4 | Observe | Red error message appears below the form |
+| 4 | Return to checkout or cancel | `/checkout?canceled=true` shows the cancelled-payment view |
 | 5 | Cart state | Cart is NOT cleared, items remain |
 
 ✅ **Expected**: Declined payment shows error; cart preserved for retry.
@@ -359,12 +359,14 @@ Use any future expiry date (e.g. `12/34`) and any 3-digit CVC (e.g. `123`). Any 
 |------|--------|-----------------|
 | 1 | Open the site in **Safari** on macOS or iOS with a saved Apple Pay card |  |
 | 2 | Add item to cart, proceed to checkout |  |
-| 3 | Load payment form | Stripe Elements shows Apple Pay button |
-| 4 | Click Apple Pay | Touch ID / Face ID prompt appears |
+| 3 | Click **"Pay $XX.XX AUD"** | Stripe-hosted Checkout opens |
+| 4 | Choose Apple Pay in Stripe Checkout | Touch ID / Face ID prompt appears |
 
 ✅ **Expected**: Apple Pay option visible and functional in Safari.
 
-> ⚠️ **Note**: Apple Pay only appears if: (a) Safari browser, (b) device has a saved payment method, (c) site is served over HTTPS with a valid domain registered with Apple.
+> ⚠️ **Note**: Hosted Stripe Checkout serves the payment page from `stripe.com`.
+> Apple Pay only appears when Safari/device wallet requirements are met and the
+> payment method is enabled in the Stripe Dashboard.
 
 ---
 
@@ -374,12 +376,14 @@ Use any future expiry date (e.g. `12/34`) and any 3-digit CVC (e.g. `123`). Any 
 |------|--------|-----------------|
 | 1 | Open the site in **Chrome** with a Google account that has saved payment methods |  |
 | 2 | Add item to cart, proceed to checkout |  |
-| 3 | Load payment form | Stripe Elements shows Google Pay button |
-| 4 | Click Google Pay | Google Pay sheet appears |
+| 3 | Click **"Pay $XX.XX AUD"** | Stripe-hosted Checkout opens |
+| 4 | Choose Google Pay in Stripe Checkout | Google Pay sheet appears |
 
 ✅ **Expected**: Google Pay option visible in Chrome when a payment method is saved.
 
-> ⚠️ **Note**: Google Pay appears via Stripe's `automatic_payment_methods: { enabled: true }`. The button only renders when the browser + account support it.
+> ⚠️ **Note**: Google Pay appears through Stripe Checkout dynamic payment
+> methods. The option only renders when the browser, account, and Dashboard
+> payment-method settings support it.
 
 ---
 
@@ -447,9 +451,22 @@ These are covered in automated tests (`src/__tests__/cart.test.ts`, `src/__tests
 
 The following console output points are built in:
 
-### API route (`/api/create-payment-intent`)
+### Checkout session endpoint (`POST /create-checkout-session`)
 
-- On error: `console.error('Payment intent creation failed:', error)` — visible in server logs (`npm run dev` terminal) and in browser Network tab response.
+- On Stripe session creation failure: `Stripe session creation failed:` appears
+  in server logs and the browser Network tab receives an `error` response.
+
+### Stripe webhook (`POST /stripe/webhook`)
+
+- On receipt: `[webhook] Received ...` appears in server logs.
+- On order creation: `[webhook] Order ORD-... created ...` appears, followed by
+  inventory and email log lines.
+- On signature problems: `[webhook] Signature verification failed:` appears.
+
+### Legacy API route (`/api/create-payment-intent`)
+
+- On error: `Payment intent creation failed:` is visible in server logs and in
+  the browser Network tab response when testing the alternate PaymentIntent path.
 
 ### Shipping calculation
 
@@ -484,6 +501,10 @@ JSON.parse(localStorage.getItem('neurotonics-checkout') || 'null')
 5. Check the terminal running `node server/index.js` for server-side error logs
 6. Verify server `.env` contains a valid `STRIPE_SECRET_KEY`
 7. Verify `NEXT_PUBLIC_API_URL` in `.env.local` points to the running Express server
+8. For successful payments with missing CMS orders, verify Stripe webhook
+   delivery and `STRIPE_WEBHOOK_SECRET`
+9. For orders with missing emails, check `GET /email-status` and `[email]`
+   server logs
 
 ---
 
@@ -529,11 +550,13 @@ Use this checklist before each production deployment:
 
 ### Payments
 
-- [ ] **Payments succeed in test mode** — card `4242 4242 4242 4242` shows "Order Confirmed!" ✅
+- [ ] **Payments succeed in test mode** — card `4242 4242 4242 4242` returns to `/success` and shows "Thank You for Your Purchase" ✅
 - [ ] **Declined payment** — Stripe shows error, cart preserved ✅
 - [ ] **Cart cleared** after successful payment ✅
 - [ ] **Checkout data cleared** after successful payment ✅
 - [ ] **Customer email pre-filled** on Stripe checkout page ✅
+- [ ] **Webhook creates order** — CMS shows an `ORD-...` record after Stripe sends `checkout.session.completed` ✅
+- [ ] **Email status healthy** — `/email-status` reports configured when buyer/admin emails are expected ✅
 
 ### Wallet payments
 

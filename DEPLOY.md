@@ -34,23 +34,43 @@ In the Render dashboard, go to the **neurotonics-cms** service → **Environment
 | `STRIPE_SECRET_KEY` | Stripe dashboard → Developers → API keys |
 | `STRIPE_WEBHOOK_SECRET` | Stripe dashboard → Developers → Webhooks (see step 4) |
 | `ADMIN_INITIAL_PASSWORD` | Choose a strong password — this becomes your CMS login |
-| `EMAIL_USER` | Your Gmail address (or other SMTP provider) |
-| `EMAIL_PASS` | Gmail App Password ([how to create one](https://support.google.com/accounts/answer/185833)) |
+| `RESEND_API_KEY` | Resend API key for transactional email (preferred) |
+| `EMAIL_USER` | SMTP fallback: your Gmail address or other SMTP username |
+| `EMAIL_PASS` | SMTP fallback: Gmail App Password ([how to create one](https://support.google.com/accounts/answer/185833)) or SMTP password |
 | `GITHUB_PAT` | GitHub → Settings → Developer settings → Personal access tokens (repo scope) |
+
+Useful optional variables:
+
+| Variable | Purpose |
+|---|---|
+| `EMAIL_FROM` or `RESEND_FROM_EMAIL` | Sender address for order emails |
+| `SUPPORT_EMAIL` | Reply/contact address in customer emails |
+| `ORDER_NOTIFICATION_EMAIL` | Fallback admin order alert recipient |
+| `STORE_URL` or `PUBLIC_STORE_URL` | Store link used in order emails |
+| `ORDER_STATUS_URL` | Optional order-status link template; supports `{{orderNumber}}` |
 
 After saving, Render will automatically redeploy.
 
 ---
 
-## 4 · Register the Stripe webhook (optional but recommended)
+## 4 · Register the Stripe webhook (required for CMS orders)
 
-So Stripe can notify your server of completed payments:
+So Stripe can notify your server of completed payments and create CMS orders:
 
 1. Go to **https://dashboard.stripe.com/webhooks**
 2. Click **Add endpoint**
 3. URL: `https://<your-render-url>/stripe/webhook`
-4. Select events: `checkout.session.completed`
+4. Select events:
+   - `checkout.session.completed` (primary hosted Checkout path)
+   - `checkout.session.async_payment_succeeded` (delayed Checkout payments)
+   - `payment_intent.succeeded` (alternate PaymentIntent path)
+   - `payment_intent.payment_failed` (failed PaymentIntent records)
 5. Copy the **Signing secret** and paste it as `STRIPE_WEBHOOK_SECRET` in Render
+
+In production, the backend rejects webhook requests when
+`STRIPE_WEBHOOK_SECRET` is missing. The public `/success` page is not the order
+source of truth; the webhook creates `ORD-...` rows, reduces server-side product
+stock, and triggers customer/admin order emails.
 
 ---
 
@@ -113,3 +133,18 @@ npm start                # or: npm run dev
 ```
 
 Open **http://localhost:4000/admin** in your browser.
+
+## Checkout and order troubleshooting
+
+- **Payment succeeds but no CMS order appears:** check Stripe webhook delivery
+  for `checkout.session.completed`, confirm the endpoint URL is
+  `https://<your-render-url>/stripe/webhook`, and verify
+  `STRIPE_WEBHOOK_SECRET` matches the endpoint signing secret.
+- **Payment succeeds but emails are missing:** visit `/email-status`, then check
+  Render logs for `[email]` messages. Configure `RESEND_API_KEY` or SMTP
+  `EMAIL_USER` + `EMAIL_PASS`.
+- **Success page works but cart/order data looks sparse:** the success page uses
+  local browser state for display and clears it after notification fallback
+  work. The durable order details live in SQLite through the webhook.
+- **Static site still calls the wrong backend:** set `NEXT_PUBLIC_API_URL` in
+  GitHub Actions secrets and rebuild GitHub Pages.
