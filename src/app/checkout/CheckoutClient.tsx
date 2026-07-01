@@ -16,7 +16,8 @@ import { clearShipping, loadShipping } from '@/lib/shippingState';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 const WEB3FORMS_KEY = process.env.NEXT_PUBLIC_WEB3FORMS_KEY ?? '';
-const GOOGLE_MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY ?? '';
+const AWS_LOCATION_KEY = process.env.NEXT_PUBLIC_AWS_LOCATION_API_KEY ?? '';
+const AWS_LOCATION_REGION = process.env.NEXT_PUBLIC_AWS_LOCATION_REGION ?? 'ap-southeast-2';
 const PURCHASE_NOTIFICATION_TIMEOUT_MS = 5_000;
 const CHECKOUT_SESSION_TIMEOUT_MS = 20_000;
 
@@ -200,31 +201,8 @@ function formatAddress(address: CheckoutAddress | undefined): string {
 }
 
 // ---------------------------------------------------------------------------
-// Google Places autocomplete
+// Amazon Location Service address autocomplete
 // ---------------------------------------------------------------------------
-
-let googleMapsPromise: Promise<void> | null = null;
-
-function ensureGoogleMapsLoaded(apiKey: string): Promise<void> {
-  if (typeof window === 'undefined') return Promise.reject(new Error('SSR'));
-  if ((window as Window & { google?: typeof google }).google?.maps?.places) {
-    return Promise.resolve();
-  }
-  if (!googleMapsPromise) {
-    googleMapsPromise = new Promise<void>((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&loading=async`;
-      script.async = true;
-      script.onload = () => resolve();
-      script.onerror = () => {
-        googleMapsPromise = null;
-        reject(new Error('Google Maps failed to load'));
-      };
-      document.head.appendChild(script);
-    });
-  }
-  return googleMapsPromise;
-}
 
 type AutocompleteAddressFields = {
   address1: string;
@@ -233,19 +211,24 @@ type AutocompleteAddressFields = {
   postcode: string;
 };
 
-function parseAddressComponents(
-  components: google.maps.GeocoderAddressComponent[],
-): AutocompleteAddressFields {
-  const get = (type: string, useShort = false): string => {
-    const c = components.find((comp) => comp.types.includes(type));
-    return useShort ? (c?.short_name ?? '') : (c?.long_name ?? '');
-  };
-  const address1 = [get('street_number'), get('route')].filter(Boolean).join(' ');
-  const city =
-    get('locality') || get('sublocality_level_1') || get('sublocality') || get('postal_town');
-  const state = get('administrative_area_level_1', true);
-  const postcode = get('postal_code');
-  return { address1, city, state, postcode };
+interface AwsAddress {
+  Label?: string;
+  AddressNumber?: string;
+  Street?: string;
+  Locality?: string;
+  Region?: { Name?: string; Code?: string };
+  PostalCode?: string;
+}
+
+interface AwsSuggestion {
+  PlaceId: string;
+  PlaceType: string;
+  Title: string;
+  Address: AwsAddress;
+}
+
+interface AwsAutocompleteResponse {
+  ResultItems?: AwsSuggestion[];
 }
 
 function AddressAutocomplete({
@@ -263,27 +246,13 @@ function AddressAutocomplete({
   hasError: boolean;
   disabled?: boolean;
 }) {
-  const [suggestions, setSuggestions] = useState<
-    google.maps.places.AutocompletePrediction[]
-  >([]);
+  const [suggestions, setSuggestions] = useState<AwsSuggestion[]>([]);
   const [open, setOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
   const [isLoading, setIsLoading] = useState(false);
-  const svcRef = useRef<google.maps.places.AutocompleteService | null>(null);
-  const detailsRef = useRef<google.maps.places.PlacesService | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!GOOGLE_MAPS_KEY) return;
-    ensureGoogleMapsLoaded(GOOGLE_MAPS_KEY)
-      .then(() => {
-        svcRef.current = new google.maps.places.AutocompleteService();
-        const dummy = document.createElement('div');
-        detailsRef.current = new google.maps.places.PlacesService(dummy);
-      })
-      .catch(() => {/* fall back to plain input */});
-  }, []);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -297,29 +266,54 @@ function AddressAutocomplete({
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, []);
 
-  const fetchSuggestions = useCallback((input: string) => {
-    if (!svcRef.current || input.length < 3) {
+  // Cancel in-flight requests on unmount
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
+  const fetchSuggestions = useCallback(async (input: string, signal: AbortSignal) => {
+    if (!AWS_LOCATION_KEY || input.length < 3) {
       setSuggestions([]);
       setOpen(false);
+      setIsLoading(false);
       return;
     }
     setIsLoading(true);
-    svcRef.current.getPlacePredictions(
-      { input, componentRestrictions: { country: 'au' }, types: ['address'] },
-      (predictions, status) => {
-        setIsLoading(false);
-        if (
-          status === google.maps.places.PlacesServiceStatus.OK &&
-          predictions?.length
-        ) {
-          setSuggestions(predictions);
-          setOpen(true);
-        } else {
-          setSuggestions([]);
-          setOpen(false);
-        }
-      },
-    );
+    try {
+      const res = await fetch(
+        `https://places.geo.${AWS_LOCATION_REGION}.amazonaws.com/v2/autocomplete?key=${AWS_LOCATION_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            QueryText: input,
+            MaxResults: 5,
+            Filter: { IncludeCountries: ['AUS'] },
+            AdditionalFeatures: ['Core'],
+            Language: 'en',
+          }),
+          signal,
+        },
+      );
+      if (!res.ok) {
+        setSuggestions([]);
+        setOpen(false);
+        return;
+      }
+      const data: AwsAutocompleteResponse = await res.json() as AwsAutocompleteResponse;
+      const items = data.ResultItems ?? [];
+      setSuggestions(items);
+      setOpen(items.length > 0);
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
+      setSuggestions([]);
+      setOpen(false);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   const handleChange = useCallback(
@@ -327,31 +321,31 @@ function AddressAutocomplete({
       const v = e.target.value;
       onChange(v);
       setActiveIdx(-1);
+      abortRef.current?.abort();
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => fetchSuggestions(v), 300);
+      debounceRef.current = setTimeout(() => {
+        abortRef.current = new AbortController();
+        fetchSuggestions(v, abortRef.current.signal);
+      }, 300);
     },
     [onChange, fetchSuggestions],
   );
 
   const handleSelect = useCallback(
-    (placeId: string) => {
-      if (!detailsRef.current) return;
-      detailsRef.current.getDetails(
-        { placeId, fields: ['address_components', 'formatted_address'] },
-        (place, status) => {
-          if (
-            status === google.maps.places.PlacesServiceStatus.OK &&
-            place?.address_components
-          ) {
-            const fields = parseAddressComponents(place.address_components);
-            onAddressSelect(fields);
-            onChange(fields.address1);
-          }
-          setSuggestions([]);
-          setOpen(false);
-          setActiveIdx(-1);
-        },
-      );
+    (suggestion: AwsSuggestion) => {
+      const addr = suggestion.Address;
+      const address1 = [addr.AddressNumber, addr.Street].filter(Boolean).join(' ') || suggestion.Title;
+      const fields: AutocompleteAddressFields = {
+        address1,
+        city: addr.Locality ?? '',
+        state: addr.Region?.Code ?? '',
+        postcode: addr.PostalCode ?? '',
+      };
+      onAddressSelect(fields);
+      onChange(fields.address1);
+      setSuggestions([]);
+      setOpen(false);
+      setActiveIdx(-1);
     },
     [onAddressSelect, onChange],
   );
@@ -367,7 +361,7 @@ function AddressAutocomplete({
         setActiveIdx((i) => Math.max(i - 1, -1));
       } else if (e.key === 'Enter' && activeIdx >= 0) {
         e.preventDefault();
-        handleSelect(suggestions[activeIdx].place_id);
+        handleSelect(suggestions[activeIdx]);
       } else if (e.key === 'Escape') {
         setOpen(false);
         setActiveIdx(-1);
@@ -403,41 +397,34 @@ function AddressAutocomplete({
           role="listbox"
           className="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-72 overflow-y-auto"
         >
-          {suggestions.map((s, i) => (
-            <li
-              key={s.place_id}
-              role="option"
-              aria-selected={i === activeIdx}
-              onMouseDown={() => handleSelect(s.place_id)}
-              className={`px-4 py-3 text-sm cursor-pointer select-none flex items-start gap-2 ${
-                i === activeIdx ? 'bg-blue-50' : 'hover:bg-gray-50'
-              }`}
-            >
-              <svg className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span>
-                <span className="font-medium text-gray-900">
-                  {s.structured_formatting.main_text}
+          {suggestions.map((s, i) => {
+            const addr = s.Address;
+            const mainText = [addr.AddressNumber, addr.Street].filter(Boolean).join(' ') || s.Title;
+            const secondaryParts = [addr.Locality, addr.Region?.Code, addr.PostalCode].filter(Boolean);
+            const secondaryText = secondaryParts.join(', ');
+            return (
+              <li
+                key={s.PlaceId}
+                role="option"
+                aria-selected={i === activeIdx}
+                onMouseDown={() => handleSelect(s)}
+                className={`px-4 py-3 text-sm cursor-pointer select-none flex items-start gap-2 ${
+                  i === activeIdx ? 'bg-blue-50' : 'hover:bg-gray-50'
+                }`}
+              >
+                <svg className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span>
+                  <span className="font-medium text-gray-900">{mainText}</span>
+                  {secondaryText && (
+                    <span className="text-gray-500 ml-1">{secondaryText}</span>
+                  )}
                 </span>
-                {s.structured_formatting.secondary_text && (
-                  <span className="text-gray-500 ml-1">
-                    {s.structured_formatting.secondary_text}
-                  </span>
-                )}
-              </span>
-            </li>
-          ))}
-          <li className="px-4 py-2 flex justify-end border-t border-gray-100">
-            {/* Required attribution per Google Maps Platform ToS */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="https://maps.gstatic.com/mapfiles/api-3/images/powered-by-google-on-white3.png"
-              alt="Powered by Google"
-              className="h-4 opacity-70"
-            />
-          </li>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

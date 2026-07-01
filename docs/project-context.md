@@ -145,7 +145,8 @@ Root/frontend examples are in `.env.example`:
 - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`: Stripe publishable key for browser use.
 - `NEXT_PUBLIC_WEB3FORMS_KEY`: optional Web3Forms key for fallback purchase or
   stockist notifications.
-- `NEXT_PUBLIC_GOOGLE_PLACES_API_KEY`: optional address autocomplete key.
+- `NEXT_PUBLIC_AWS_LOCATION_API_KEY`: optional Amazon Location Service API key for address autocomplete.
+- `NEXT_PUBLIC_AWS_LOCATION_REGION`: AWS region for the Places endpoint (default: `ap-southeast-2`).
 
 Server examples are in `server/.env.example`:
 
